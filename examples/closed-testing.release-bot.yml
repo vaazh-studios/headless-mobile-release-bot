@@ -1,0 +1,50 @@
+# A first real run on Google Play without touching production users:
+# the whole flow (upload, review, 1% → 2% → 100%, halt/resume, Slack) on a
+# CLOSED TESTING track whose testers are just your team.
+#
+# 1. Play Console → Testing → Closed testing → create a track (or use "alpha"),
+#    add a tester list with your team's Google accounts.
+# 2. Set package_name and the track name below; copy over release-bot.yml.
+# 3. Run "Android · Doctor", then "Submit to the store" with a tag.
+#
+# Internal testing ("internal") works for a 5-minute smoke test of upload +
+# login, but it has no staged rollouts: the bot releases it to all testers.
+
+defaults:
+  timezone: Europe/Berlin
+  play:
+    track: alpha                     # your closed testing track's name
+    release_notes_language: en-US
+    default_release_notes: "Release bot closed-testing run."
+    changes_not_sent_for_review: false
+  rollout:
+    schedule:                        # day-based so it works whatever day you start
+      - {on: day 0, percent: 1}
+      - {on: day 1, percent: 2}
+      - {on: day 2, percent: 100}
+    # A handful of testers produce almost no Play Vitals data: don't wait for it.
+    when_data_is_thin: advance
+  health:
+    min_users: 0
+    sources:
+      play_vitals: {}
+    rules:
+      - {name: Google ANR line,   source: play_vitals, metric: user_perceived_anr_rate,   above: "0.47%", action: halt}
+      - {name: Google crash line, source: play_vitals, metric: user_perceived_crash_rate, above: "1.09%", action: halt}
+  slack: {channel_id: "", announce_channel_id: "", alerts_channel_id: "", hero_usergroup_id: ""}
+  access:
+    release_heroes: {}               # your-github-login: U0123456789
+
+accounts:
+  main:
+    environment: play-production     # holds GCP_WORKLOAD_IDENTITY_PROVIDER / GCP_SERVICE_ACCOUNT
+
+apps:
+  myapp:
+    account: main
+    name: My App
+    package_name: com.example.myapp  # ← your app
+    build:
+      project_dir: .
+      bundle_task: ":app:bundleRelease"
+      aab_glob: app/build/outputs/bundle/release/*.aab

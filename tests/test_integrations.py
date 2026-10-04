@@ -253,3 +253,48 @@ def test_amplitude_below_its_min_users_waits():
         {"source": "amplitude", "metric": "conv", "below": "20%", "action": "halt"}]})
     f = rules.evaluate(n, {"amplitude": {"new": {"conv": 0.1, "_users": 120}, "prev": {}}})
     assert f[0].level == Level.NOT_ENOUGH_DATA and "120 users < 300 minimum" in f[0].message
+
+
+# ---------- Play tracks: internal has no staged rollout ----------
+
+from release_bot.play import Play  # noqa: E402
+
+
+class FakeEdits:
+    def __init__(self):
+        self.track_body = None
+    def insert(self, **kw):
+        return self
+    def bundles(self):
+        return self
+    def upload(self, **kw):
+        class X:
+            def execute(self_inner):
+                return {"versionCode": 4200}
+        return X()
+    def tracks(self):
+        return self
+    def update(self, **kw):
+        self.track_body = kw["body"]
+        return self
+    def commit(self, **kw):
+        return self
+    def execute(self):
+        return {"id": "edit1"}
+
+
+class FakeService:
+    def __init__(self):
+        self.e = FakeEdits()
+    def edits(self):
+        return self.e
+
+
+@pytest.mark.parametrize("track, staged", [("internal", False), ("alpha", True), ("production", True)])
+def test_internal_track_releases_without_user_fraction(track, staged, monkeypatch, tmp_path):
+    monkeypatch.setattr("release_bot.play.MediaFileUpload", lambda *a, **k: None)
+    svc = FakeService()
+    Play("com.x", track, service=svc).upload_and_start("a.aab", "1.0.0", 0.01, "notes", "en-US")
+    release = svc.e.track_body["releases"][0]
+    assert ("userFraction" in release) == staged
+    assert release["status"] == ("inProgress" if staged else "completed")

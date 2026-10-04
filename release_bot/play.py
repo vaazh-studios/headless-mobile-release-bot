@@ -46,6 +46,8 @@ class Play:
                  dry_run: bool = False, service=None):
         self.package = package
         self.track = track
+        # Staged rollouts work on production and closed/open testing, not on internal testing.
+        self.staged = track != "internal"
         self.skip_review = changes_not_sent_for_review
         self.dry_run = dry_run
         self._svc = service
@@ -81,6 +83,10 @@ class Play:
             "userFraction": fraction,
             "releaseNotes": [{"language": language, "text": notes[:500]}],
         }
+        if not self.staged:
+            # Internal testing has no staged rollouts: release to all testers at once.
+            release["status"] = "completed"
+            release.pop("userFraction")
         self._commit_track(edit["id"], release)
         return version_code
 

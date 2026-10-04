@@ -342,8 +342,14 @@ def cmd_submit(deps: Deps, args) -> int:
     fraction = rollout_policy(deps.cfg).android.initial
     code = deps.play.upload_and_start(args.aab, args.version, fraction, notes, p["release_notes_language"])
     code_txt = f" (versionCode {code})" if code and code > 0 else ""
-    root = (f"🚀 {_name(deps)} *{args.version}*{code_txt} submitted to Play review. "
-            f"Rollout starts at {_p(fraction)} once Google approves.")
+    track = deps.cfg["play"].get("track", "production")
+    if track == "internal":
+        root = (f"🧪 {_name(deps)} *{args.version}*{code_txt} uploaded to *internal testing*: all internal "
+                "testers get it right away (no staged rollout on this track).")
+    else:
+        where = "Play review" if track == "production" else f"Play review for the *{track}* testing track"
+        root = (f"🚀 {_name(deps)} *{args.version}*{code_txt} submitted to {where}. "
+                f"Rollout starts at {_p(fraction)} once Google approves.")
     if args.release_url:
         root += f"\nRelease notes: {args.release_url}"
     plan = plan_text(deps.cfg)
