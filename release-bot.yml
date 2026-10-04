@@ -14,51 +14,46 @@ defaults:
 
   play:
     track: production
-    initial_fraction: 0.02          # release day submit → 2% once Google approves
     release_notes_language: en-US
     default_release_notes: "Bug fixes and performance improvements."
     # Leave false unless Play asks for it (e.g. other changes pending review).
     changes_not_sent_for_review: false
 
+  # ── Rollout schedule ── see docs/configuration.md
   rollout:
-    # The bot moves at most ONE step per run, so a held day just shifts the
-    # schedule instead of jumping 2% → 50%. (Mock mode: every run is one step.)
-    steps: [0.02, 0.20, 0.50, 1.0]
-    targets:                        # weekday → highest fraction allowed that day
-      monday: 0.20
-      tuesday: 0.50
-      wednesday: 1.0
+    # aligned: Android and iOS follow one schedule (it must be possible on iOS).
+    # separate: give each platform its own, under android: {schedule: …} and ios: {schedule: …}
+    platforms: aligned
+    # Steps in order. `on` is a weekday, or "day N" (N days after the submit day).
+    # The first step goes live when the store approves; later steps need green health.
+    # This one matches Apple's phased release (1% → 2%) and then releases to everyone.
+    schedule:
+      - {on: monday,    percent: 1}
+      - {on: tuesday,   percent: 2}
+      - {on: wednesday, percent: 100}
+    # Fewer users on the new version than health.min_users: hold, or advance anyway?
+    when_data_is_thin: hold
 
+  # ── Health: where signals come from, and what to do about them ──
   health:
-    # Below this many daily users on the new version (Play Vitals), the data is
-    # too noisy to judge. Advancing waits; halting still happens on hard signals.
-    min_distinct_users: 1000
-
-    crashlytics:
-      enabled: true
-      project: my-firebase-project
-      dataset: firebase_crashlytics
-      table: com_example_sandbox_ANDROID_REALTIME   # <package_with_underscores>_ANDROID_REALTIME
-      lookback_days: 30
-      # A fatal crash group that first appears in this build and hits at least
-      # this many users → HALT.
-      new_issue_min_users: 25
-
-    play_vitals:
-      enabled: true
-      halt:                          # absolute — Google's bad-behaviour lines
-        user_perceived_crash_rate: 0.0109
-        user_perceived_anr_rate: 0.0047
-      hold:                          # relative to the previous version
-        crash_rate_increase_ratio: 1.25
-        anr_rate_increase_ratio: 1.25
-
-    grafana:
-      enabled: false                 # set true and add GRAFANA_URL / GRAFANA_TOKEN
-      matchers:
-        - 'team="mobile"'
-      halt_severities: [critical]
-      hold_severities: [warning]
+    min_users: 1000                  # Play Vitals daily users needed before judging
+    sources:                         # remove a source to turn it off
+      play_vitals: {}
+      crashlytics:
+        project: my-firebase-project
+        dataset: firebase_crashlytics
+        table: com_example_sandbox_ANDROID_REALTIME   # <package_with_underscores>_ANDROID_REALTIME
+        lookback_days: 30
+      # grafana:                     # needs GRAFANA_URL / GRAFANA_TOKEN
+      #   matchers: ['team="mobile"']
+    rules:                           # action: halt (stop) | hold (don't advance) | notify (tell, keep going)
+      - {name: Google ANR line,   source: play_vitals, metric: user_perceived_anr_rate,   above: "0.47%", action: halt}
+      - {name: Google crash line, source: play_vitals, metric: user_perceived_crash_rate, above: "1.09%", action: halt}
+      - {name: ANR regression,    source: play_vitals, metric: user_perceived_anr_rate,   above_previous_by: "25%", action: hold}
+      - {name: Crash regression,  source: play_vitals, metric: user_perceived_crash_rate, above_previous_by: "25%", action: hold}
+      - {name: New crash,         source: crashlytics, metric: new_fatal_issue_users, at_least: 25, action: halt}
+      - {name: Pager alert,       source: grafana, severity: critical, action: halt}
+      - {name: Warning alert,     source: grafana, severity: warning,  action: hold}
 
   # Channel IDs can also come from repo variables SLACK_CHANNEL_ID,
   # SLACK_ANNOUNCE_CHANNEL_ID, SLACK_ALERTS_CHANNEL_ID and SLACK_HERO_USERGROUP_ID.
@@ -85,6 +80,7 @@ apps:
     account: main
     name: Example
     package_name: com.example.sandbox
+    platforms: [android]             # add ios once iOS support lands; validate checks the schedule fits
     build:
       project_dir: examples/android-app   # where gradlew lives
       bundle_task: ":app:bundleRelease"

@@ -9,17 +9,17 @@
 Your release hero clicks one button on Thursday. After that the bot:
 
 - builds the signed `.aab` from your tag and publishes **GitHub release notes**
-- uploads to Play production at **2%**
+- uploads to Play production at your first step (e.g. **1%**)
 - **checks health every few hours** (Crashlytics, Play Vitals, Grafana) and **halts automatically**
   on a new crash, Google's ANR/crash thresholds, or a critical alert
-- moves **2% → 20% → 50% → 100%** on your schedule, only when everything is green
+- moves through **your schedule** (e.g. 1% Mon → 2% Tue → 100% Wed), only when **your health rules** are green
 - keeps your team in the loop in Slack: one thread per release, announcements, SLO alerts
 
 ```
-Thu   hero: "Submit v4.12.0" ─▶ build ─▶ release notes ─▶ Play 2% ─▶ Slack thread
-Fri   Google approves → 2% live
-Sat…  health check every 3h ───────────────▶ 🛑 auto-halt if unhealthy
-Mon   ⬆️ 20%   Tue ⬆️ 50%   Wed ⬆️ 100% 🎉   (only when green; holds otherwise)
+Thu   hero: "Submit v4.12.0" ─▶ build ─▶ release notes ─▶ Play 1% ─▶ Slack thread
+Fri   Google approves → 1% live
+Sat…  health check every 3h ───────────────▶ 🛑 auto-halt if a halt rule fires
+Tue   ⬆️ 2%    Wed ⬆️ 100% 🎉   (your schedule; holds when a hold rule fires)
 ```
 
 ## Why
@@ -58,6 +58,7 @@ Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 |---|---|
 | [How it works](docs/how-it-works.md) | Multi-day rollouts without a server, the health gate, what halts vs holds |
 | [Release hero runbook](docs/release-hero-runbook.md) | The weekly person: what to click, what Slack messages mean |
+| [Configuration](docs/configuration.md) | Rollout schedules (aligned/separate, weekdays or day N) and health rules (halt/hold/notify), per team |
 | [Setup](docs/setup.md) | One-time production setup |
 | [Multiple apps & accounts](docs/multi-app.md) | Several apps across several Play developer accounts from one repo |
 | [Simulator](docs/simulator.md) | Replaying release weeks with mock data, writing scenarios |
