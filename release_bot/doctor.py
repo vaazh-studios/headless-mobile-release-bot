@@ -291,15 +291,15 @@ def _notify_checks(cfg: dict, env: dict) -> list[Check]:
     n = cfg.get("notify") or {}
     if env.get("TEAMS_WEBHOOK_URL"):
         out.append(Check(OK, "Microsoft Teams", "webhook configured (messages are mirrored; not test-posted)"))
-    if n.get("pagerduty"):
+    if n.get("pagerduty") is not None:
         out.append(Check(OK if env.get("PAGERDUTY_ROUTING_KEY") else FAIL, "PagerDuty paging",
                          "routing key set" if env.get("PAGERDUTY_ROUTING_KEY") else "PAGERDUTY_ROUTING_KEY is not set",
                          "" if env.get("PAGERDUTY_ROUTING_KEY") else "Add an Events API v2 integration to a service and "
                          "store its integration key as PAGERDUTY_ROUTING_KEY."))
     inc = n.get("incident_io")
-    if inc and inc.get("declare_incident"):
+    if inc and inc.get("declare_incident") is not None:
         ok = bool(env.get("INCIDENT_IO_API_KEY"))
-        d = inc["declare_incident"]
+        d = inc["declare_incident"] or {}
         out.append(Check(OK if ok else FAIL, "incident.io incidents on halt",
                          f"will declare a {d.get('severity', 'default-severity')} incident (mode {d.get('mode', 'standard')})"
                          if ok else "INCIDENT_IO_API_KEY is not set",
@@ -313,7 +313,7 @@ def _notify_checks(cfg: dict, env: dict) -> list[Check]:
                          "" if ok else "incident.io → Alerts → Sources → add an HTTP source; put its ID in "
                          "notify.incident_io.alert_source_config_id and its token in INCIDENT_IO_ALERT_TOKEN."))
     if env.get("RELEASE_BOT_MOCK", "").lower() == "true" and env.get("MOCK_LIVE_ACTIONS", "").lower() != "true":
-        if inc or n.get("pagerduty") or (cfg.get("on_halt") or {}).get("optimizely"):
+        if inc or n.get("pagerduty") is not None or (cfg.get("on_halt") or {}).get("optimizely"):
             out.append(Check(OK, "mock mode safety", "halt actions (paging, flag kill switch) run as dry runs; "
                              "set MOCK_LIVE_ACTIONS=true to test them for real"))
     opt = (cfg.get("on_halt") or {}).get("optimizely")

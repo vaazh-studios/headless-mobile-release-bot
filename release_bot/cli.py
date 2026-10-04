@@ -278,10 +278,12 @@ def _halt_effects(deps: Deps, version: str, summary: str, automatic: bool) -> No
     from release_bot import notify
     client = deps.play if deps.play is not None else deps.appstore
     dry = shadow_mode(deps.cfg) or bool(getattr(client, "dry_run", False))
-    if deps.store is not None and os.environ.get("MOCK_LIVE_ACTIONS", "").lower() != "true":
-        dry = True  # mock mode never flips real flags or pages people, unless explicitly allowed
     dedup = f"release-bot-{deps.cfg.get('app_id', 'app')}-{deps.cfg.get('platform', 'android')}-{version}"
-    lines = notify.on_halt(deps.cfg, f"{_name(deps)} {version}: {summary}", dedup, dry, automatic)
+    if deps.store is not None and os.environ.get("MOCK_LIVE_ACTIONS", "").lower() != "true":
+        # Mock mode never flips real flags or pages people: it simulates and records instead.
+        lines = notify.simulate_halt(deps.cfg, automatic, deps.store.data)
+    else:
+        lines = notify.on_halt(deps.cfg, f"{_name(deps)} {version}: {summary}", dedup, dry, automatic)
     if lines:
         deps.slack.post(_key(deps, version), "\n".join(lines))
 

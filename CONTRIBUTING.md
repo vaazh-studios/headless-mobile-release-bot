@@ -13,6 +13,12 @@ python -m sim                # replay release weeks → sim/out/report.html
 
 Workflows are linted with [actionlint](https://github.com/rhysd/actionlint) (`pip install actionlint-py`).
 
+**Contract tests** (`tests/test_contracts.py`) check every request the API clients send against
+snapshots of the providers' published OpenAPI specs in `tests/contracts/specs/`. If you change a
+client or add an endpoint, add its operation to `scripts/update_api_specs.py` and run it to
+refresh the snapshots. Google Play is checked against the discovery documents bundled with
+google-api-python-client.
+
 ## Layout
 
 | Path | What |

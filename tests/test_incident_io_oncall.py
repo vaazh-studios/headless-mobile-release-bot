@@ -110,3 +110,12 @@ def test_doctor_shows_who_is_on_call():
     checks = {c.name: c for c in doctor._slack_checks(deps.cfg, f)}
     assert checks["Release hero (incident.io)"].status == doctor.OK
     assert "on call now: Alice" in checks["Release hero (incident.io)"].detail
+
+
+def test_declare_incident_with_default_settings(monkeypatch):
+    calls = []
+    monkeypatch.setattr("release_bot.incident_io.IncidentIOAdmin.declare",
+                        lambda self, *a, **k: calls.append(k) or {"reference": "INC-9"})
+    notify.on_halt({"notify": {"incident_io": {"declare_incident": {}}}}, "s", "k", dry_run=False, automatic=True,
+                   env={"INCIDENT_IO_API_KEY": "key"})
+    assert calls and calls[0]["mode"] == "standard"
