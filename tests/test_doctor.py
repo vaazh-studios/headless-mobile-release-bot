@@ -122,3 +122,10 @@ def test_cli_doctor_exit_code(capsys):
     good[("conversations.info", "C3")] = {"ok": True, "channel": {"name": "slo", "is_member": True}}
     assert cli.cmd_doctor(raw, "checkout-team", factory(slack_call=slack(good))) == 0
     assert "All good." in capsys.readouterr().out
+
+
+def test_missing_channels_read_scope_is_a_warning():
+    resp = dict(GOOD_SLACK)
+    resp[("conversations.info", "C1")] = {"ok": False, "error": "missing_scope"}
+    c = by_name(doctor.run(CFG, factory(slack_call=slack(resp))))["Slack release channel"]
+    assert c.status == doctor.WARN and "channels:read" in c.fix

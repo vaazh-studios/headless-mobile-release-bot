@@ -193,8 +193,15 @@ def _slack_checks(cfg: dict, f: Factory) -> list[Check]:
             continue
         info = f.slack_call("conversations.info", channel=cid)
         if not info.get("ok"):
-            out.append(Check(FAIL, f"Slack {label}", f"{cid}: {info.get('error')}",
-                             "Check the channel ID (channel details → About → bottom)."))
+            err = info.get("error")
+            if err == "missing_scope":
+                out.append(Check(WARN, f"Slack {label}", f"{cid}: can't verify (no channels:read scope)",
+                                 "Optional: add channels:read and groups:read to the Slack app (see "
+                                 "slack-app-manifest.yml) so doctor can check channels. Posting doesn't need them."))
+            else:
+                out.append(Check(FAIL, f"Slack {label}", f"{cid}: {err}",
+                                 "Check the channel ID (channel details → About → bottom), and that the bot "
+                                 "can see it (private channels: /invite the bot)."))
             continue
         ch = info["channel"]
         if ch.get("is_member"):
