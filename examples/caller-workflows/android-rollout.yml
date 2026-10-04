@@ -1,0 +1,33 @@
+# Moves each app's rollout one step per run, only when its health rules allow it.
+# Schedules live in release-bot.yml (per app). Play holds the state between runs.
+name: "Android · Rollout step"
+
+on:
+  schedule:
+    - cron: "0 7 * * 1-3"   # 07:00 UTC Mon–Wed. Must cover every weekday your schedules use
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Only this app (empty = all apps)"
+        required: false
+        type: string
+      dry_run:
+        description: "Check and report only — change nothing on Play"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-rollout.yml@main
+    with:
+      app: ${{ inputs.app || '' }}
+      dry_run: ${{ inputs.dry_run || false }}
+    # Pass secrets by name: `secrets: inherit` only works inside one GitHub organization.
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+      RELEASE_BOT_REPO_TOKEN: ${{ secrets.RELEASE_BOT_REPO_TOKEN }}

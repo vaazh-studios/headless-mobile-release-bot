@@ -3,7 +3,7 @@
 #     submit:
 #       uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-submit.yml@main
 #       with: {app: ${{ inputs.app }}, tag: ${{ inputs.tag }}}
-#       secrets: inherit
+#       secrets: { SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} }   # see examples/caller-workflows
 name: "Release bot · Submit to Play"
 
 on:
@@ -37,6 +37,24 @@ on:
         description: "Bot version to run (use the same ref as in `uses:`)"
         type: string
         default: main
+
+    # Declared so callers in another org/account can pass them (secrets: inherit only
+    # works within one organization). Environment secrets are read directly.
+    secrets:
+      SLACK_BOT_TOKEN:
+        required: false
+      GRAFANA_TOKEN:
+        required: false
+      RELEASE_BOT_REPO_TOKEN:
+        required: false
+      ANDROID_UPLOAD_KEYSTORE_BASE64:
+        required: false
+      ANDROID_UPLOAD_STORE_PASSWORD:
+        required: false
+      ANDROID_UPLOAD_KEY_ALIAS:
+        required: false
+      ANDROID_UPLOAD_KEY_PASSWORD:
+        required: false
 
 env:
   PYTHONPATH: ${{ github.workspace }}/.release-bot

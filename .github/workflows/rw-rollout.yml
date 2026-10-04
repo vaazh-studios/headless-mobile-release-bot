@@ -2,7 +2,7 @@
 #   jobs:
 #     x:
 #       uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-rollout.yml@main
-#       secrets: inherit
+#       secrets: { SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} }   # see examples/caller-workflows
 name: "Release bot · Rollout step"
 
 on:
@@ -28,6 +28,16 @@ on:
         description: "Check and report only; change nothing on the store"
         type: boolean
         default: false
+
+    # Declared so callers in another org/account can pass them (secrets: inherit only
+    # works within one organization). Environment secrets are read directly.
+    secrets:
+      SLACK_BOT_TOKEN:
+        required: false
+      GRAFANA_TOKEN:
+        required: false
+      RELEASE_BOT_REPO_TOKEN:
+        required: false
 
 env:
   PYTHONPATH: ${{ github.workspace }}/.release-bot

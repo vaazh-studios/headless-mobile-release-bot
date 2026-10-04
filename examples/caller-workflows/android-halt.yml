@@ -1,0 +1,35 @@
+# Big red button. Open to anyone with repo access: stopping a rollout is always safe.
+name: "Android · HALT rollout"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "App id (leave empty if only one app is configured)"
+        required: false
+        type: string
+      reason:
+        description: "Why? (posted to Slack)"
+        required: true
+        type: string
+
+# Own queue so a halt never waits behind a queued rollout step.
+concurrency:
+  group: android-release-halt-${{ inputs.app || 'app' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-halt.yml@main
+    with:
+      app: ${{ inputs.app }}
+      reason: ${{ inputs.reason }}
+    # Pass secrets by name: `secrets: inherit` only works inside one GitHub organization.
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+      RELEASE_BOT_REPO_TOKEN: ${{ secrets.RELEASE_BOT_REPO_TOKEN }}

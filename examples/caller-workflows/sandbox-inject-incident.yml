@@ -1,0 +1,34 @@
+# Sandbox only (RELEASE_BOT_MOCK=true): make one app's mock health data go bad
+# (or good again), then run its health check. Leave this out of production repos.
+name: "Sandbox · Inject incident"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "App id (leave empty if only one app is configured)"
+        required: false
+        type: string
+      incident:
+        description: "What should the mock health data show?"
+        type: choice
+        options: [new-crash, anr-regression, anr-over-threshold, grafana-critical, grafana-warning, none]
+
+concurrency:
+  group: android-release-${{ inputs.app || 'app' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-inject.yml@main
+    with:
+      app: ${{ inputs.app }}
+      incident: ${{ inputs.incident }}
+    # Pass secrets by name: `secrets: inherit` only works inside one GitHub organization.
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+      RELEASE_BOT_REPO_TOKEN: ${{ secrets.RELEASE_BOT_REPO_TOKEN }}

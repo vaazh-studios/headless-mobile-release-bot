@@ -1,0 +1,35 @@
+# Health gate for every app; halts automatically when a halt rule fires.
+# Every 3 hours, and immediately on a Grafana webhook (repository_dispatch "rollout-alert").
+name: "Android · Health check"
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"   # off the hour: GitHub delays top-of-hour crons the most
+  repository_dispatch:
+    types: [rollout-alert]
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Only this app (empty = all apps)"
+        required: false
+        type: string
+      dry_run:
+        description: "Check and report only — change nothing on Play"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-health.yml@main
+    with:
+      app: ${{ inputs.app || '' }}
+      dry_run: ${{ inputs.dry_run || false }}
+    # Pass secrets by name: `secrets: inherit` only works inside one GitHub organization.
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+      RELEASE_BOT_REPO_TOKEN: ${{ secrets.RELEASE_BOT_REPO_TOKEN }}
