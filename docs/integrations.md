@@ -13,7 +13,7 @@ secrets in the right GitHub environment. `python -m release_bot doctor` checks t
 | [Sentry](#sentry) | health | both | `SENTRY_AUTH_TOKEN` |
 | [Generic HTTP/JSON](#generic-httpjson-checks) | health | both | `RELEASE_BOT_HTTP_ENV` |
 | [PagerDuty](#pagerduty) | health + paging | both | `PAGERDUTY_API_TOKEN`, `PAGERDUTY_ROUTING_KEY` |
-| [incident.io](#incidentio) | health + alerting | both | `INCIDENT_IO_API_KEY`, `INCIDENT_IO_ALERT_TOKEN` |
+| [incident.io](#incidentio) | alerting on halt (optional: incident gate) | both | `INCIDENT_IO_ALERT_TOKEN` (gate: `INCIDENT_IO_API_KEY`) |
 | [Amplitude](#amplitude) | health (business) | both | `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY` |
 | [Microsoft Teams](#microsoft-teams) | notification | — | `TEAMS_WEBHOOK_URL` |
 | [Optimizely kill switch](#optimizely-kill-switch) | action on halt | — | `OPTIMIZELY_TOKEN` |
@@ -137,25 +137,32 @@ notify:
 
 ## incident.io
 
+**Main use: alerting.** When the bot halts or pauses a release by itself, it raises an alert on an
+incident.io **HTTP alert source**, so your normal alert routes, escalations and on-call apply.
+One alert per release (de-duplicated). Manual halts don't alert.
+
+```yaml
+notify:
+  incident_io: {alert_source_config_id: 01HXYZ...}   # Alerts → Sources → HTTP → its ID
+```
+
+Secret: `INCIDENT_IO_ALERT_TOKEN` (the HTTP alert source's token).
+
+**Optional: open incidents as a gate.** Off unless you add it. Useful if you'd rather not step a
+rollout up while a big incident is open, even an unrelated one.
+
 ```yaml
 health:
   sources:
     incident_io: {}
   rules:
-    - {name: Major incident, source: incident_io, severity: [Critical, Major], action: halt}
-    - {name: Any incident,   source: incident_io, action: hold}
+    - {name: Major incident, source: incident_io, severity: [Critical, Major], action: hold}
     - {name: Payments,       source: incident_io, name_matches: "payment|checkout", action: halt}
-notify:
-  incident_io: {alert_source_config_id: 01HXYZ...}   # raise an alert when the bot halts by itself
 ```
 
-- **Signal:** incidents in *Triage* or *Active*, matched by severity name and/or a regex on the
-  incident name. Test and tutorial incidents are ignored. Secret: `INCIDENT_IO_API_KEY` (an API
-  key that can view incidents).
-- **Alerting:** on an automatic halt the bot fires an alert on an incident.io **HTTP alert
-  source** (Alerts → Sources → HTTP), so your normal routing and on-call apply. One alert per
-  release (de-duplicated). Secret: `INCIDENT_IO_ALERT_TOKEN` (the source's token); the source's ID
-  goes in `alert_source_config_id`.
+Matches incidents in *Triage* or *Active* by severity name and/or a regex on the incident name;
+test and tutorial incidents are ignored. Secret: `INCIDENT_IO_API_KEY` (a key that can view
+incidents).
 
 ## Mock mode and real side effects
 

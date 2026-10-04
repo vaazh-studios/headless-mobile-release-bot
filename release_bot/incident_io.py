@@ -1,16 +1,16 @@
-"""incident.io: open incidents as a health signal, and an alert when the bot halts.
+"""incident.io: an alert when the bot halts (main use), and optionally open
+incidents as a gate.
 
-    health:
+    notify:
+      incident_io: {alert_source_config_id: 01HXYZ...}   # HTTP alert source to alert through
+    health:                                             # optional gate
       sources:
         incident_io: {}
       rules:
-        - {name: Major incident, source: incident_io, severity: [Critical, Major], action: halt}
-        - {name: Any incident,   source: incident_io, action: hold}
-    notify:
-      incident_io: {alert_source_config_id: 01HXYZ...}   # HTTP alert source to page through
+        - {name: Major incident, source: incident_io, severity: [Critical, Major], action: hold}
 
-Secrets: INCIDENT_IO_API_KEY (API key that can view incidents) for the signal;
-INCIDENT_IO_ALERT_TOKEN (the HTTP alert source's token) for alerts on halt.
+Secrets: INCIDENT_IO_ALERT_TOKEN (the HTTP alert source's token) for alerts on
+halt; INCIDENT_IO_API_KEY (a key that can view incidents) only for the gate.
 Test and tutorial incidents are ignored (incident.io's default).
 """
 
