@@ -4,6 +4,8 @@ Stateless: a release's thread is found again by a marker in its root message.
 Bot scopes: chat:write, channels:history, channels:join (groups:history for private), usergroups:read.
 """
 
+import html
+
 import requests
 
 API = "https://slack.com/api"
@@ -43,7 +45,8 @@ class Slack:
         if ts is None:
             return False
         data = self._call("conversations.replies", get=True, channel=self.channel, ts=ts, limit=200)
-        return any(text in m.get("text", "") for m in data.get("messages", []))
+        # Slack stores &, < and > escaped; compare against the plain text.
+        return any(text in html.unescape(m.get("text", "")) for m in data.get("messages", []))
 
     def announce(self, channel: str | None, text: str) -> None:
         """Top-level message in another channel (wider group, SLO alerts)."""
@@ -100,8 +103,13 @@ class ShadowSlack:
     def _key(key: str) -> str:
         return f"{key} (shadow)"
 
+    @staticmethod
+    def _core(text: str) -> str:
+        """The decision without the per-run links, so a repeat is recognised."""
+        return text.split("\n<http", 1)[0]
+
     def post(self, key: str, text: str, root_text: str | None = None) -> None:
-        if self.inner.thread_contains(self._key(key), text):
+        if self.inner.thread_contains(self._key(key), self._core(text)):
             self._last_skipped = True
             print(f"[shadow] already posted, staying quiet: {text.splitlines()[0]}")
             return
