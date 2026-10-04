@@ -58,3 +58,53 @@ def alert(alert_source_config_id: str, token: str, title: str, description: str,
     resp = (session or requests).post(f"{API}/v2/alert_events/http/{alert_source_config_id}", json=body,
                                       headers={"Authorization": f"Bearer {token}"}, timeout=30)
     resp.raise_for_status()
+
+
+class IncidentIOAdmin:
+    """On-call lookups and incident creation (needs INCIDENT_IO_API_KEY)."""
+
+    def __init__(self, api_key: str, session=None):
+        if not api_key:
+            raise RuntimeError("INCIDENT_IO_API_KEY is not set")
+        self.headers = {"Authorization": f"Bearer {api_key}"}
+        self.http = session or requests.Session()
+
+    def on_call(self, schedule_id: str, now=None) -> list[dict]:
+        """Who is on call for a schedule right now (after overrides): [{"name", "email", "slack_user_id"}]."""
+        from datetime import datetime, timedelta, timezone
+        now = now or datetime.now(timezone.utc)
+        params = {"schedule_id": schedule_id, "entry_window_start": now.isoformat(),
+                  "entry_window_end": (now + timedelta(minutes=1)).isoformat()}
+        resp = self.http.get(f"{API}/v2/schedule_entries", params=params, headers=self.headers, timeout=30)
+        resp.raise_for_status()
+        out = []
+        for e in (resp.json().get("schedule_entries") or {}).get("final", []):
+            start, end = e.get("start_at"), e.get("end_at")
+            if start and end and not (datetime.fromisoformat(start.replace("Z", "+00:00")) <= now
+                                      < datetime.fromisoformat(end.replace("Z", "+00:00"))):
+                continue
+            u = e.get("user") or {}
+            out.append({"name": u.get("name", ""), "email": u.get("email", ""), "slack_user_id": u.get("slack_user_id", "")})
+        return out
+
+    def severity_id(self, name: str) -> str:
+        resp = self.http.get(f"{API}/v1/severities", headers=self.headers, timeout=30)
+        resp.raise_for_status()
+        for s in resp.json().get("severities", []):
+            if s.get("name", "").lower() == name.lower():
+                return s["id"]
+        raise RuntimeError(f"incident.io has no severity called '{name}'")
+
+    def declare(self, name: str, summary: str, idempotency_key: str, severity: str | None = None,
+                mode: str = "standard", visibility: str = "public", incident_type_id: str | None = None) -> dict:
+        """Create an incident. The idempotency key stops a re-checked halt from opening a second one."""
+        body = {"idempotency_key": idempotency_key[:100], "visibility": visibility, "mode": mode,
+                "name": name[:255], "summary": summary}
+        if severity:
+            body["severity_id"] = self.severity_id(severity)
+        if incident_type_id:
+            body["incident_type_id"] = incident_type_id
+        resp = self.http.post(f"{API}/v2/incidents", json=body, headers=self.headers, timeout=30)
+        resp.raise_for_status()
+        inc = resp.json().get("incident", {})
+        return {"id": inc.get("id"), "reference": inc.get("reference"), "permalink": inc.get("permalink")}

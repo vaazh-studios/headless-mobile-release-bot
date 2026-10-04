@@ -36,6 +36,7 @@ class Factory:
     pagerduty: object = None         # (token, service_ids) -> object with open_incidents()
     sentry: object = None            # (source_cfg, token) -> object with metrics(ctx)
     incident_io: object = None       # (api_key) -> object with open_incidents()
+    incident_io_admin: object = None # (api_key) -> object with on_call(schedule_id)
     slack_call: object = None        # (method, **params) -> dict (Slack Web API response)
     env: dict = field(default_factory=lambda: dict(os.environ))
 
@@ -296,7 +297,15 @@ def _notify_checks(cfg: dict, env: dict) -> list[Check]:
                          "" if env.get("PAGERDUTY_ROUTING_KEY") else "Add an Events API v2 integration to a service and "
                          "store its integration key as PAGERDUTY_ROUTING_KEY."))
     inc = n.get("incident_io")
-    if inc:
+    if inc and inc.get("declare_incident"):
+        ok = bool(env.get("INCIDENT_IO_API_KEY"))
+        d = inc["declare_incident"]
+        out.append(Check(OK if ok else FAIL, "incident.io incidents on halt",
+                         f"will declare a {d.get('severity', 'default-severity')} incident (mode {d.get('mode', 'standard')})"
+                         if ok else "INCIDENT_IO_API_KEY is not set",
+                         "" if ok else "Store an incident.io API key that can create incidents as INCIDENT_IO_API_KEY. "
+                         "Use mode: test while trying it out."))
+    if inc and inc.get("alert_source_config_id") is not None:
         ok = bool(env.get("INCIDENT_IO_ALERT_TOKEN") and inc.get("alert_source_config_id"))
         out.append(Check(OK if ok else FAIL, "incident.io alerts",
                          f"alert source {inc.get('alert_source_config_id')}" if ok else
@@ -359,6 +368,10 @@ def _slack_checks(cfg: dict, f: Factory) -> list[Check]:
         else:
             out.append(Check(OK, f"Slack {label}", f"#{ch.get('name')} (bot joins on first post via channels:join)"))
 
+    schedule = (cfg.get("access", {}).get("on_duty") or {}).get("incident_io_schedule_id")
+    if schedule:
+        out.append(_on_call_check(schedule, f))
+        return out
     group = slack.get("hero_usergroup_id")
     if group:
         res = f.slack_call("usergroups.users.list", usergroup=group)
@@ -371,6 +384,25 @@ def _slack_checks(cfg: dict, f: Factory) -> list[Check]:
         out.append(Check(WARN, "Release hero group", "not set: nobody can submit or resume",
                          "Set slack.hero_usergroup_id and access.release_heroes."))
     return out
+
+
+def _on_call_check(schedule: str, f: Factory) -> Check:
+    key = f.env.get("INCIDENT_IO_API_KEY")
+    if not key:
+        return Check(FAIL, "Release hero (incident.io)", "INCIDENT_IO_API_KEY is not set",
+                     "Create an incident.io API key that can view schedules and store it as INCIDENT_IO_API_KEY.")
+    def oc():
+        users = f.incident_io_admin(key).on_call(schedule)
+        who = ", ".join(u["name"] or u["email"] for u in users) or "nobody"
+        missing = [u["name"] or u["email"] for u in users if not u.get("slack_user_id")]
+        status = WARN if not users or missing else OK
+        detail = f"on call now: {who}" + (f" (no Slack account linked: {', '.join(missing)})" if missing else "")
+        return Check(status, "Release hero (incident.io)", detail,
+                     "" if status == OK else "Make sure the schedule has someone on call and their incident.io "
+                     "user is linked to Slack (for @mentions). Map their GitHub login to their email in "
+                     "access.release_heroes.")
+    return _try("Release hero (incident.io)", oc, lambda s, e: (f"HTTP {s or '?'} ({e})",
+                "Check the schedule ID (On-call → Schedules → the schedule's URL) and that the key can view schedules."))
 
 
 def config_mod_env(key: str) -> str:
@@ -422,6 +454,10 @@ def default_factory() -> Factory:
         from release_bot.incident_io import IncidentIO
         return IncidentIO(key)
 
+    def incident_io_admin(key):
+        from release_bot.incident_io import IncidentIOAdmin
+        return IncidentIOAdmin(key)
+
     def slack_call(method, **params):
         import requests
         resp = requests.get(f"https://slack.com/api/{method}", params=params, timeout=30,
@@ -429,7 +465,8 @@ def default_factory() -> Factory:
         return resp.json()
 
     return Factory(google_identity, play, vitals, bigquery_table, grafana, slack_call=slack_call, datadog=datadog,
-                   http=http, pagerduty=pagerduty, sentry=sentry, incident_io=incident_io)
+                   http=http, pagerduty=pagerduty, sentry=sentry, incident_io=incident_io,
+                   incident_io_admin=incident_io_admin)
 
 
 def render(app_label: str, checks: list[Check]) -> str:
