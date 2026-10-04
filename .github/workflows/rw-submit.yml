@@ -67,6 +67,28 @@ on:
         required: false
       TEAMS_WEBHOOK_URL:
         required: false
+      DD_API_KEY:
+        required: false
+      DD_APP_KEY:
+        required: false
+      SENTRY_AUTH_TOKEN:
+        required: false
+      PAGERDUTY_API_TOKEN:
+        required: false
+      PAGERDUTY_ROUTING_KEY:
+        required: false
+      OPTIMIZELY_TOKEN:
+        required: false
+      RELEASE_BOT_HTTP_ENV:
+        required: false
+      AMPLITUDE_API_KEY:
+        required: false
+      AMPLITUDE_SECRET_KEY:
+        required: false
+      INCIDENT_IO_API_KEY:
+        required: false
+      INCIDENT_IO_ALERT_TOKEN:
+        required: false
 
 env:
   PYTHONPATH: ${{ github.workspace }}/.release-bot
