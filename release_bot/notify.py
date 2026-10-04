@@ -105,12 +105,37 @@ class Optimizely:
         return changed
 
 
+def simulate_halt(cfg: dict, automatic: bool, state: dict) -> list[str]:
+    """Mock mode: show what the configured halt actions would do, and record them in the mock state."""
+    lines, log = [], state.setdefault("side_effects", [])
+    n, inc = cfg.get("notify") or {}, (cfg.get("notify") or {}).get("incident_io") or {}
+    if automatic and n.get("pagerduty") is not None:
+        log.append({"type": "pagerduty_page"})
+        lines.append("📟 Paged on-call via PagerDuty _(simulated)_")
+    if automatic and inc.get("alert_source_config_id"):
+        log.append({"type": "incident_io_alert"})
+        lines.append("📟 Raised an incident.io alert _(simulated)_")
+    if automatic and inc.get("declare_incident") is not None:
+        ref = f"INC-{sum(e['type'] == 'incident' for e in log) + 1}"
+        log.append({"type": "incident", "reference": ref, "severity": inc["declare_incident"].get("severity")})
+        lines.append(f"🚨 Declared {ref} ({inc['declare_incident'].get('severity', 'default')}) in incident.io _(simulated)_")
+    opt = (cfg.get("on_halt") or {}).get("optimizely") or {}
+    if opt.get("flags"):
+        flags = state.setdefault("optimizely_flags", {})
+        for f in opt["flags"]:
+            flags[f] = False
+        log.append({"type": "flags_off", "flags": list(opt["flags"])})
+        lines.append(f"🚩 Turned off feature flags in {opt.get('environment', 'production')}: "
+                     + ", ".join(f"`{f}`" for f in opt["flags"]) + " _(simulated)_")
+    return lines
+
+
 def on_halt(cfg: dict, summary: str, dedup_key: str, dry_run: bool, automatic: bool, env=None) -> list[str]:
     """Run the configured halt side effects. Returns human-readable lines for Slack."""
     env = env if env is not None else os.environ
     lines = []
     pd = (cfg.get("notify") or {}).get("pagerduty")
-    if pd and automatic:
+    if pd is not None and automatic:
         key = env.get("PAGERDUTY_ROUTING_KEY")
         if not key:
             lines.append("⚠️ PagerDuty paging is configured but PAGERDUTY_ROUTING_KEY is not set")
@@ -124,8 +149,8 @@ def on_halt(cfg: dict, summary: str, dedup_key: str, dry_run: bool, automatic: b
                 lines.append("📟 Paged on-call via PagerDuty")
             except Exception as e:  # noqa: BLE001 — a paging failure mustn't undo the halt
                 lines.append(f"⚠️ PagerDuty page failed: {e}")
-    inc = (cfg.get("notify") or {}).get("incident_io")
-    if inc and inc.get("alert_source_config_id") is not None and automatic:
+    inc = (cfg.get("notify") or {}).get("incident_io") or {}
+    if inc.get("alert_source_config_id") is not None and automatic:
         token = env.get("INCIDENT_IO_ALERT_TOKEN")
         if not token or not inc.get("alert_source_config_id"):
             lines.append("⚠️ incident.io alerting is configured but INCIDENT_IO_ALERT_TOKEN or "
@@ -140,7 +165,7 @@ def on_halt(cfg: dict, summary: str, dedup_key: str, dry_run: bool, automatic: b
             except Exception as e:  # noqa: BLE001
                 lines.append(f"⚠️ incident.io alert failed: {e}")
     declare = (inc or {}).get("declare_incident")
-    if declare and automatic:
+    if declare is not None and automatic:
         key = env.get("INCIDENT_IO_API_KEY")
         if not key:
             lines.append("⚠️ declare_incident is configured but INCIDENT_IO_API_KEY is not set")

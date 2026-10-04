@@ -4,19 +4,32 @@ Everything here is optional. Play Console vitals is the only health source turne
 Each integration needs a source under `health.sources` (or a `notify` / `on_halt` block) plus
 secrets in the right GitHub environment. `python -m release_bot doctor` checks them all.
 
-| Integration | Kind | Platforms | Secrets / variables |
-|---|---|---|---|
-| [Play Console vitals](configuration.md#health-rules) | health (default) | Android | the Play service account |
-| [Crashlytics](configuration.md#health-rules) | health | both | BigQuery read |
-| [Grafana](setup.md#4-optional-health-sources) | health | both | `GRAFANA_URL`, `GRAFANA_TOKEN` |
-| [Datadog](setup.md#4-optional-health-sources) | health | both | `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE` |
-| [Sentry](#sentry) | health | both | `SENTRY_AUTH_TOKEN` |
-| [Generic HTTP/JSON](#generic-httpjson-checks) | health | both | `RELEASE_BOT_HTTP_ENV` |
-| [PagerDuty](#pagerduty) | health + paging | both | `PAGERDUTY_API_TOKEN`, `PAGERDUTY_ROUTING_KEY` |
-| [incident.io](#incidentio) | alert or declare an incident on halt; release hero from on-call; optional incident gate | both | `INCIDENT_IO_ALERT_TOKEN`, `INCIDENT_IO_API_KEY` |
-| [Amplitude](#amplitude) | health (business) | both | `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY` |
-| [Microsoft Teams](#microsoft-teams) | notification | — | `TEAMS_WEBHOOK_URL` |
-| [Optimizely kill switch](#optimizely-kill-switch) | action on halt | — | `OPTIMIZELY_TOKEN` |
+| Integration | Kind | Platforms | Secrets / variables | Tested how |
+|---|---|---|---|---|
+| [Play Console vitals](configuration.md#health-rules) | health (default) | Android | the Play service account | 🧪 contract |
+| Google Play publishing | store | Android | the Play service account | 🧪 contract |
+| [App Store Connect](ios.md) | store | iOS | `ASC_*` | 🧪 contract |
+| [Crashlytics](configuration.md#health-rules) | health | both | BigQuery read | ⚙️ unit |
+| [Grafana](setup.md#4-optional-health-sources) | health | both | `GRAFANA_URL`, `GRAFANA_TOKEN` | ⚙️ unit |
+| [Datadog](setup.md#4-optional-health-sources) | health | both | `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE` | 🧪 contract |
+| [Sentry](#sentry) | health | both | `SENTRY_AUTH_TOKEN` | 🧪 contract |
+| [Generic HTTP/JSON](#generic-httpjson-checks) | health | both | `RELEASE_BOT_HTTP_ENV` | ⚙️ unit |
+| [PagerDuty](#pagerduty) | health + paging | both | `PAGERDUTY_API_TOKEN`, `PAGERDUTY_ROUTING_KEY` | 🧪 contract |
+| [incident.io](#incidentio) | alert / declare on halt; release hero from on-call; optional gate | both | `INCIDENT_IO_ALERT_TOKEN`, `INCIDENT_IO_API_KEY` | 🧪 contract |
+| [Amplitude](#amplitude) | health (business) | both | `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY` | ⚙️ unit |
+| Slack | notification | — | `SLACK_BOT_TOKEN` | ✅ live (sandbox) |
+| [Microsoft Teams](#microsoft-teams) | notification | — | `TEAMS_WEBHOOK_URL` | ⚙️ unit |
+| [Optimizely kill switch](#optimizely-kill-switch) | action on halt | — | `OPTIMIZELY_TOKEN` | ⚙️ unit |
+
+**Tested how:**
+- ✅ **live**: has run against the real service.
+- 🧪 **contract**: every request the bot sends is checked in CI against the provider's published
+  API spec (`tests/contracts/`, refreshed with `scripts/update_api_specs.py`), plus unit tests.
+- ⚙️ **unit**: no machine-readable spec is published; covered by unit tests against the documented API.
+
+None of the store or third-party integrations has a **real-account report** yet. If you've run one,
+please open a ["verified" issue](../../issues/new?template=integration-verified.yml) with redacted
+Doctor output, and we'll mark it here.
 
 Callers in another GitHub organization pass these secrets by name (see
 [examples/caller-workflows](../examples/caller-workflows)).

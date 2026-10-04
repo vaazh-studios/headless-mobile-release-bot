@@ -1,0 +1,41 @@
+name: "✅ Integration verified with a real account"
+description: Report that an integration worked (or didn't) against a real account. No secrets or company details, please.
+title: "[verified] <integration>: works / doesn't work"
+labels: ["integration-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! These reports decide each integration's status in docs/integrations.md.
+        **Redact everything private**: no tokens, URLs, IDs, emails, app names or people. Placeholders are fine.
+  - type: dropdown
+    id: integration
+    attributes:
+      label: Integration
+      options: [Google Play, App Store Connect, Play Vitals, Crashlytics, Sentry, Grafana, Datadog, PagerDuty, incident.io, Amplitude, Generic HTTP, Slack, Microsoft Teams, Optimizely]
+    validations: {required: true}
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options: ["Works", "Works with caveats", "Doesn't work"]
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes:
+      label: Bot version (tag or commit)
+    validations: {required: true}
+  - type: checkboxes
+    id: what
+    attributes:
+      label: What did you check?
+      options:
+        - label: Doctor shows ✅ for this integration
+        - label: A real run used it (health check, halt, alert, flag…)
+        - label: Shadow mode only
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Redacted Doctor output / notes
+      description: Paste the relevant Doctor lines with private details replaced.
+      render: text

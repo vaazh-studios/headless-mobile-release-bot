@@ -1,0 +1,234 @@
+{
+ "components": {
+  "schemas": {
+   "Images": {
+    "description": "Images to be displayed on the alert and/or corresponding incident.",
+    "items": {
+     "description": "An image to be displayed on the incident or alert.",
+     "properties": {
+      "alt": {
+       "description": "Optional alternative text for the image.",
+       "type": "string"
+      },
+      "href": {
+       "description": "Optional link for the image.",
+       "format": "url",
+       "type": "string"
+      },
+      "src": {
+       "description": "The source of the image being attached to the incident or alert. This image must be served via HTTPS.",
+       "format": "url",
+       "type": "string"
+      }
+     },
+     "required": [
+      "src"
+     ],
+     "type": "object"
+    },
+    "type": "array",
+    "x-examples": {
+     "example-1": [
+      {
+       "alt": "string",
+       "href": "string",
+       "src": "string"
+      }
+     ]
+    }
+   },
+   "Links": {
+    "description": "Links to be shown on the alert and/or corresponding incident.",
+    "items": {
+     "description": "A link to be attached to an incident or alert.",
+     "properties": {
+      "href": {
+       "description": "The link being attached to an incident or alert.",
+       "format": "url",
+       "type": "string"
+      },
+      "text": {
+       "description": "Optional information pertaining to this context link.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "href"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "Payload": {
+    "description": "Fields adding additional context about the location, impact, and character of the PagerDuty event.",
+    "properties": {
+     "class": {
+      "description": "The class/type of the event.",
+      "type": "string"
+     },
+     "component": {
+      "description": "Component of the source machine that is responsible for the event.",
+      "type": "string"
+     },
+     "custom_details": {
+      "description": "Additional details about the event and affected system.",
+      "type": "object"
+     },
+     "group": {
+      "description": "Logical grouping of components of a service.",
+      "type": "string"
+     },
+     "severity": {
+      "description": "The perceived severity of the status the event is describing withrespect to the affected system.",
+      "enum": [
+       "critical",
+       "warning",
+       "error",
+       "info"
+      ]
+     },
+     "source": {
+      "description": "The unique location of the affected system, preferably a hostname or FQDN.",
+      "type": "string"
+     },
+     "summary": {
+      "description": "A brief text summary of the event, used to generate the summaries/titles of any associated alerts.",
+      "type": "string"
+     },
+     "timestamp": {
+      "description": "The time at which the emitting tool detected or generated the event.",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "summary",
+     "severity",
+     "source"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ "paths": {
+  "/enqueue": {
+   "post": {
+    "description": "Your monitoring tools should send PagerDuty a trigger event to report a new problem, or update an ongoing problem, depending on the event type.\n",
+    "operationId": "createV2Event",
+    "parameters": [],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "examples": {
+        "event": {
+         "summary": "Example Event Body",
+         "value": {
+          "client": "Sample Monitoring Service",
+          "client_url": "https://monitoring.service.com",
+          "dedup_key": "srv01/mysql",
+          "event_action": "trigger",
+          "images": [
+           {
+            "alt": "An example link with an image",
+            "href": "https://google.com",
+            "src": "https://chart.googleapis.com/chart?chs=600x400&chd=t:6,2,9,5,2,5,7,4,8,2,1&cht=lc&chds=a&chxt=y&chm=D,0033FF,0,0,5,1"
+           }
+          ],
+          "links": [
+           {
+            "href": "http://pagerduty.example.com",
+            "text": "An example link."
+           }
+          ],
+          "payload": {
+           "class": "disk",
+           "component": "mysql",
+           "custom_details": {
+            "free space": "1%",
+            "load avg": 0.75,
+            "ping time": "1500ms"
+           },
+           "group": "prod-datapipe",
+           "severity": "critical",
+           "source": "prod-datapipe03.example.com",
+           "summary": "DISK at 99% on machine prod-datapipe03.example.com",
+           "timestamp": "2015-07-17T08:42:58.315+0000"
+          },
+          "routing_key": "e93facc04764012d7bfb002500d5d1a6"
+         }
+        }
+       },
+       "schema": {
+        "description": "Trigger or update an alert.",
+        "properties": {
+         "client": {
+          "description": "The name of the monitoring client that is triggering this event. (This field is only used for `trigger` events.)",
+          "type": "string"
+         },
+         "client_url": {
+          "description": "The URL of the monitoring client that is triggering this event. (This field is only used for `trigger` events.)",
+          "format": "url",
+          "type": "string"
+         },
+         "dedup_key": {
+          "description": "Identifies the alert to `trigger`, `acknowledge`, or `resolve`. Required unless the `event_type` is `trigger`.",
+          "type": "string"
+         },
+         "event_action": {
+          "description": "The type of event. Can be `trigger`, `acknowledge` or `resolve`.",
+          "enum": [
+           "trigger",
+           "acknowledge",
+           "resolve"
+          ]
+         },
+         "images": {
+          "$ref": "#/components/schemas/Images"
+         },
+         "links": {
+          "$ref": "#/components/schemas/Links"
+         },
+         "payload": {
+          "$ref": "#/components/schemas/Payload"
+         },
+         "routing_key": {
+          "description": "The GUID of one of your Events API V2 integrations. This is the \"Integration Key\" listed on the Events API V2 integration's detail page.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "routing_key",
+         "event_action"
+        ],
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "$ref": "#/components/responses/Success"
+     },
+     "400": {
+      "description": "#/components/responses/ArgumentError"
+     },
+     "429": {
+      "description": "#/components/responses/TooManyRequests"
+     },
+     "5XX": {
+      "$ref": "#/components/responses/Error"
+     }
+    },
+    "summary": "Send an event to PagerDuty",
+    "tags": [
+     "Send Event"
+    ]
+   }
+  }
+ },
+ "x-fetched": "2026-10-04",
+ "x-source": [
+  "https://raw.githubusercontent.com/PagerDuty/api-schema/main/reference/events-v2/openapiv3.json"
+ ]
+}

@@ -1,0 +1,4696 @@
+{
+ "components": {
+  "schemas": {
+   "APIKeyActorV2": {
+    "example": {
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "name": "My test API key"
+    },
+    "properties": {
+     "id": {
+      "description": "Unique identifier for this API key",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "name": {
+      "description": "The name of the API key, for the user's reference",
+      "example": "My test API key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
+   "ActorV2": {
+    "example": {
+     "alert": {
+      "id": "01GW2G3V0S59R238FAHPDS1R66",
+      "title": "*errors.withMessage: PG::Error failed to connect"
+     },
+     "api_key": {
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "name": "My test API key"
+     },
+     "user": {
+      "email": "lisa@incident.io",
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "name": "Lisa Karlin Curtis",
+      "role": "owner",
+      "slack_user_id": "U02AYNF2XJM"
+     },
+     "workflow": {
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "name": "My little workflow"
+     }
+    },
+    "properties": {
+     "alert": {
+      "$ref": "#/components/schemas/AlertActorV2"
+     },
+     "api_key": {
+      "$ref": "#/components/schemas/APIKeyActorV2"
+     },
+     "user": {
+      "$ref": "#/components/schemas/UserV2"
+     },
+     "workflow": {
+      "$ref": "#/components/schemas/WorkflowActorV2"
+     }
+    },
+    "type": "object"
+   },
+   "AfterPaginationMetaResultV2": {
+    "example": {
+     "after": "abc123",
+     "after_url": "abc123"
+    },
+    "properties": {
+     "after": {
+      "description": "The time, if it exists, of the last entry's end time",
+      "example": "abc123",
+      "type": "string"
+     },
+     "after_url": {
+      "description": "The URL to fetch the next page of entries",
+      "example": "abc123",
+      "type": "string"
+     }
+    },
+    "required": [
+     "after",
+     "after_url"
+    ],
+    "type": "object"
+   },
+   "AlertActorV2": {
+    "example": {
+     "id": "01GW2G3V0S59R238FAHPDS1R66",
+     "title": "*errors.withMessage: PG::Error failed to connect"
+    },
+    "properties": {
+     "id": {
+      "description": "The ID of this alert",
+      "example": "01GW2G3V0S59R238FAHPDS1R66",
+      "type": "string"
+     },
+     "title": {
+      "description": "The title of the alert, parsed from the alert payload according to the alert source configuration",
+      "example": "*errors.withMessage: PG::Error failed to connect",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title"
+    ],
+    "type": "object"
+   },
+   "AlertEventsCreateHTTPPayloadV2": {
+    "example": {
+     "deduplication_key": "4293868629",
+     "description": "We've detected a number of timeouts on hello.world.com, the service may be down. To fix...",
+     "metadata": {
+      "service": "hello.world.com",
+      "team": [
+       "my-team"
+      ]
+     },
+     "source_url": "https://www.my-alerting-platform.com/alerts/my-alert-123",
+     "status": "firing",
+     "title": "*errors.withMessage: PG::Error failed to connect"
+    },
+    "properties": {
+     "deduplication_key": {
+      "description": "A deduplication key which uniquely references this alert from your alert source. For newly created HTTP sources, this field is required.\nIf you send an event with the same deduplication_key multiple times, only one alert will be created in incident.io for this alert source config.\nYou can filter on this field to find the alert created by an event you've sent us.",
+      "example": "4293868629",
+      "type": "string"
+     },
+     "description": {
+      "description": "Description that optionally adds more detail to title. Supports markdown.",
+      "example": "We've detected a number of timeouts on hello.world.com, the service may be down. To fix...",
+      "type": "string"
+     },
+     "metadata": {
+      "additionalProperties": true,
+      "description": "Any additional metadata that you've configured your alert source to parse",
+      "example": {
+       "service": "hello.world.com",
+       "team": [
+        "my-team"
+       ]
+      },
+      "type": "object"
+     },
+     "source_url": {
+      "description": "If applicable, a link to the alert in the upstream system",
+      "example": "https://www.my-alerting-platform.com/alerts/my-alert-123",
+      "type": "string"
+     },
+     "status": {
+      "description": "Current status of this alert",
+      "enum": [
+       "firing",
+       "resolved"
+      ],
+      "example": "firing",
+      "type": "string"
+     },
+     "title": {
+      "description": "The title of the alert, parsed from the alert payload according to the alert source configuration",
+      "example": "*errors.withMessage: PG::Error failed to connect",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "status"
+    ],
+    "type": "object"
+   },
+   "AlertEventsCreateHTTPResultV2": {
+    "example": {
+     "deduplication_key": "unique-key",
+     "message": "Event accepted for processing",
+     "status": "success"
+    },
+    "properties": {
+     "deduplication_key": {
+      "description": "The deduplication key that the event has been processed with",
+      "example": "unique-key",
+      "type": "string"
+     },
+     "message": {
+      "description": "Human readable message giving detail about the event",
+      "example": "Event accepted for processing",
+      "type": "string"
+     },
+     "status": {
+      "description": "Status of the event",
+      "example": "success",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "message",
+     "deduplication_key"
+    ],
+    "type": "object"
+   },
+   "CustomFieldEntryPayloadV2": {
+    "example": {
+     "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "values": [
+      {
+       "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "value_catalog_entry_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "value_link": "https://google.com/",
+       "value_numeric": "123.456",
+       "value_option_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "value_text": "This is my text field, I hope you like it",
+       "value_timestamp": ""
+      }
+     ]
+    },
+    "properties": {
+     "custom_field_id": {
+      "description": "ID of the custom field this entry is linked against",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "values": {
+      "description": "List of values to associate with this entry. Use an empty array to unset the value of the custom field.",
+      "example": [
+       {
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "value_catalog_entry_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "value_link": "https://google.com/",
+        "value_numeric": "123.456",
+        "value_option_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "value_text": "This is my text field, I hope you like it",
+        "value_timestamp": ""
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/CustomFieldValuePayloadV2"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "custom_field_id",
+     "values"
+    ],
+    "type": "object"
+   },
+   "CustomFieldEntryV2": {
+    "example": {
+     "custom_field": {
+      "description": "Which team is impacted by this issue",
+      "field_type": "single_select",
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "name": "Affected Team",
+      "options": [
+       {
+        "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "sort_key": 10,
+        "value": "Product"
+       }
+      ]
+     },
+     "values": [
+      {
+       "value_catalog_entry": {
+        "aliases": [
+         "lawrence@incident.io",
+         "lawrence"
+        ],
+        "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "Primary On-call"
+       },
+       "value_link": "https://google.com/",
+       "value_numeric": "123.456",
+       "value_option": {
+        "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "sort_key": 10,
+        "value": "Product"
+       },
+       "value_text": "This is my text field, I hope you like it"
+      }
+     ]
+    },
+    "properties": {
+     "custom_field": {
+      "$ref": "#/components/schemas/CustomFieldTypeInfoV2"
+     },
+     "values": {
+      "description": "List of custom field values set on this entry",
+      "example": [
+       {
+        "value_catalog_entry": {
+         "aliases": [
+          "lawrence@incident.io",
+          "lawrence"
+         ],
+         "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Primary On-call"
+        },
+        "value_link": "https://google.com/",
+        "value_numeric": "123.456",
+        "value_option": {
+         "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "sort_key": 10,
+         "value": "Product"
+        },
+        "value_text": "This is my text field, I hope you like it"
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/CustomFieldValueV2"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "custom_field",
+     "values"
+    ],
+    "type": "object"
+   },
+   "CustomFieldOptionV2": {
+    "example": {
+     "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "sort_key": 10,
+     "value": "Product"
+    },
+    "properties": {
+     "custom_field_id": {
+      "description": "ID of the custom field this option belongs to",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique identifier for the custom field option",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "sort_key": {
+      "default": 1000,
+      "description": "Sort key used to order the custom field options correctly",
+      "example": 10,
+      "format": "int64",
+      "type": "integer"
+     },
+     "value": {
+      "description": "Human readable name for the custom field option. Values must not start or end with whitespace, or contain tabs or newlines.",
+      "example": "Product",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "custom_field_id",
+     "value",
+     "sort_key"
+    ],
+    "type": "object"
+   },
+   "CustomFieldTypeInfoV2": {
+    "example": {
+     "description": "Which team is impacted by this issue",
+     "field_type": "single_select",
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "name": "Affected Team",
+     "options": [
+      {
+       "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "sort_key": 10,
+       "value": "Product"
+      }
+     ]
+    },
+    "properties": {
+     "description": {
+      "description": "Description of the custom field",
+      "example": "Which team is impacted by this issue",
+      "type": "string"
+     },
+     "field_type": {
+      "description": "Type of custom field",
+      "enum": [
+       "single_select",
+       "multi_select",
+       "text",
+       "link",
+       "numeric"
+      ],
+      "example": "single_select",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique identifier for the custom field",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "name": {
+      "description": "Human readable name for the custom field",
+      "example": "Affected Team",
+      "maxLength": 50,
+      "type": "string"
+     },
+     "options": {
+      "description": "What options are available for this custom field, if this field has options",
+      "example": [
+       {
+        "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "sort_key": 10,
+        "value": "Product"
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/CustomFieldOptionV2"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "description",
+     "field_type",
+     "options"
+    ],
+    "type": "object"
+   },
+   "CustomFieldValuePayloadV2": {
+    "example": {
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "value_catalog_entry_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "value_link": "https://google.com/",
+     "value_numeric": "123.456",
+     "value_option_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "value_text": "This is my text field, I hope you like it",
+     "value_timestamp": ""
+    },
+    "properties": {
+     "id": {
+      "description": "Unique identifier for the custom field value",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "value_catalog_entry_id": {
+      "description": "ID of the catalog entry. You can also use an ExternalID or an Alias of the catalog entry.",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "value_link": {
+      "description": "If the custom field type is 'link', this will contain the value assigned.",
+      "example": "https://google.com/",
+      "type": "string"
+     },
+     "value_numeric": {
+      "description": "If the custom field type is 'numeric', this will contain the value assigned.",
+      "example": "123.456",
+      "type": "string"
+     },
+     "value_option_id": {
+      "description": "ID of the custom field option",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "value_text": {
+      "description": "If the custom field type is 'text', this will contain the value assigned.",
+      "example": "This is my text field, I hope you like it",
+      "type": "string"
+     },
+     "value_timestamp": {
+      "description": "Deprecated: please use incident timestamp values instead",
+      "example": "",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "CustomFieldValueV2": {
+    "example": {
+     "value_catalog_entry": {
+      "aliases": [
+       "lawrence@incident.io",
+       "lawrence"
+      ],
+      "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "name": "Primary On-call"
+     },
+     "value_link": "https://google.com/",
+     "value_numeric": "123.456",
+     "value_option": {
+      "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "sort_key": 10,
+      "value": "Product"
+     },
+     "value_text": "This is my text field, I hope you like it"
+    },
+    "properties": {
+     "value_catalog_entry": {
+      "$ref": "#/components/schemas/EmbeddedCatalogEntryV2"
+     },
+     "value_link": {
+      "description": "If the custom field type is 'link', this will contain the value assigned.",
+      "example": "https://google.com/",
+      "type": "string"
+     },
+     "value_numeric": {
+      "description": "If the custom field type is 'numeric', this will contain the value assigned.",
+      "example": "123.456",
+      "type": "string"
+     },
+     "value_option": {
+      "$ref": "#/components/schemas/CustomFieldOptionV2"
+     },
+     "value_text": {
+      "description": "If the custom field type is 'text', this will contain the value assigned.",
+      "example": "This is my text field, I hope you like it",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "EmbeddedCatalogEntryV2": {
+    "example": {
+     "aliases": [
+      "lawrence@incident.io",
+      "lawrence"
+     ],
+     "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "name": "Primary On-call"
+    },
+    "properties": {
+     "aliases": {
+      "description": "Optional aliases that can be used to reference this entry",
+      "example": [
+       "lawrence@incident.io",
+       "lawrence"
+      ],
+      "items": {
+       "example": "abc123",
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "external_id": {
+      "description": "An optional alternative ID for this entry, which is ensured to be unique for the type",
+      "example": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+      "type": "string"
+     },
+     "id": {
+      "description": "ID of this catalog entry",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "name": {
+      "description": "Name is the human readable name of this entry",
+      "example": "Primary On-call",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
+   "EmbeddedIncidentRoleV2": {
+    "example": {
+     "created_at": "2021-08-17T13:28:57.801578Z",
+     "description": "The person currently coordinating the incident",
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+     "name": "Incident Lead",
+     "required": false,
+     "role_type": "lead",
+     "shortform": "lead",
+     "updated_at": "2021-08-17T13:28:57.801578Z"
+    },
+    "properties": {
+     "created_at": {
+      "description": "When the role was created",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "description": {
+      "description": "Describes the purpose of the role",
+      "example": "The person currently coordinating the incident",
+      "minLength": 1,
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique identifier for the role",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "instructions": {
+      "description": "Provided to whoever is nominated for the role. Note that this will be empty for the 'reporter' role.",
+      "example": "Take point on the incident; Make sure people are clear on responsibilities",
+      "type": "string"
+     },
+     "name": {
+      "description": "Human readable name of the incident role",
+      "example": "Incident Lead",
+      "minLength": 1,
+      "type": "string"
+     },
+     "required": {
+      "description": "This field is deprecated.",
+      "example": false,
+      "type": "boolean"
+     },
+     "role_type": {
+      "description": "Type of incident role",
+      "enum": [
+       "lead",
+       "reporter",
+       "custom"
+      ],
+      "example": "lead",
+      "type": "string"
+     },
+     "shortform": {
+      "description": "Short human readable name for Slack. Note that this will be empty for the 'reporter' role.",
+      "example": "lead",
+      "type": "string"
+     },
+     "updated_at": {
+      "description": "When the role was last updated",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "shortform",
+     "description",
+     "instructions",
+     "id",
+     "role_type",
+     "created_at",
+     "updated_at"
+    ],
+    "type": "object"
+   },
+   "ErrorDebug": {
+    "example": {
+     "message": "Something broke: and something else: and something else",
+     "stacktrace": [
+      "thing.go:123"
+     ]
+    },
+    "properties": {
+     "message": {
+      "description": "Original internal error message",
+      "example": "Something broke: and something else: and something else",
+      "type": "string"
+     },
+     "stacktrace": {
+      "description": "Stacktrace of the error, if applicable",
+      "example": [
+       "thing.go:123"
+      ],
+      "items": {
+       "example": "thing.go:123",
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "message",
+     "stacktrace"
+    ],
+    "type": "object"
+   },
+   "ErrorRateLimit": {
+    "example": {
+     "limit": 100,
+     "name": "client_ip",
+     "remaining": 98,
+     "retry_after": "2020-01-01T00:00:00Z"
+    },
+    "properties": {
+     "limit": {
+      "description": "The maximum number of requests that the consumer is permitted to make per minute",
+      "example": 100,
+      "format": "int64",
+      "type": "integer"
+     },
+     "name": {
+      "description": "Which rate limit was exceeded",
+      "example": "client_ip",
+      "type": "string"
+     },
+     "remaining": {
+      "description": "The number of requests remaining in the current rate limit window",
+      "example": 98,
+      "format": "int64",
+      "type": "integer"
+     },
+     "retry_after": {
+      "description": "When the client can retry, as an RFC3339 timestamp in UTC. Prefer the Retry-After response header, which carries the same instant as a number of seconds",
+      "example": "2020-01-01T00:00:00Z",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "limit",
+     "remaining",
+     "retry_after"
+    ],
+    "type": "object"
+   },
+   "ErrorResponse": {
+    "example": {
+     "debug": {
+      "message": "Something broke: and something else: and something else",
+      "stacktrace": [
+       "thing.go:123"
+      ]
+     },
+     "errors": [
+      {
+       "code": "trial_expired",
+       "message": "Default incident call link must be a valid URL",
+       "metadata": {
+        "abc123": "abc123"
+       },
+       "source": {
+        "field": "default_call_url",
+        "pointer": "/settings/default_call_url"
+       }
+      }
+     ],
+     "rate_limit": {
+      "limit": 100,
+      "name": "client_ip",
+      "remaining": 98,
+      "retry_after": "2020-01-01T00:00:00Z"
+     },
+     "request_id": "2T1p0e3j",
+     "status": 408,
+     "type": "invalid_request_error"
+    },
+    "properties": {
+     "debug": {
+      "$ref": "#/components/schemas/ErrorDebug"
+     },
+     "errors": {
+      "description": "List of errors that caused this request to fail",
+      "example": [
+       {
+        "code": "trial_expired",
+        "message": "Default incident call link must be a valid URL",
+        "metadata": {
+         "abc123": "abc123"
+        },
+        "source": {
+         "field": "default_call_url",
+         "pointer": "/settings/default_call_url"
+        }
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/ErrorSingle"
+      },
+      "type": "array"
+     },
+     "rate_limit": {
+      "$ref": "#/components/schemas/ErrorRateLimit"
+     },
+     "request_id": {
+      "description": "Unique identifier of the request",
+      "example": "2T1p0e3j",
+      "type": "string"
+     },
+     "status": {
+      "description": "HTTP status of the response",
+      "example": 408,
+      "format": "int64",
+      "type": "integer"
+     },
+     "type": {
+      "description": "Machine-readable identifier for the general category of error",
+      "enum": [
+       "invalid_request_error",
+       "authentication_error",
+       "resource_forbidden",
+       "not_found",
+       "not_acceptable",
+       "method_not_allowed",
+       "request_timeout",
+       "conflict",
+       "precondition_failed",
+       "payload_too_large",
+       "validation_error",
+       "too_many_requests",
+       "api_error",
+       "rate_limit_reached",
+       "client_timeout"
+      ],
+      "example": "invalid_request_error",
+      "type": "string"
+     }
+    },
+    "required": [
+     "type",
+     "status",
+     "request_id",
+     "errors"
+    ],
+    "type": "object"
+   },
+   "ErrorSingle": {
+    "example": {
+     "code": "trial_expired",
+     "message": "Default incident call link must be a valid URL",
+     "metadata": {
+      "abc123": "abc123"
+     },
+     "source": {
+      "field": "default_call_url",
+      "pointer": "/settings/default_call_url"
+     }
+    },
+    "properties": {
+     "code": {
+      "description": "Machine-readable identifier for this specific error",
+      "example": "trial_expired",
+      "type": "string"
+     },
+     "message": {
+      "description": "Human readable description of the error",
+      "example": "Default incident call link must be a valid URL",
+      "type": "string"
+     },
+     "metadata": {
+      "additionalProperties": {
+       "example": "abc123",
+       "type": "string"
+      },
+      "description": "Additional metadata about the error, keyed by a string identifier",
+      "example": {
+       "abc123": "abc123"
+      },
+      "type": "object"
+     },
+     "source": {
+      "$ref": "#/components/schemas/ErrorSource"
+     }
+    },
+    "required": [
+     "code",
+     "message"
+    ],
+    "type": "object"
+   },
+   "ErrorSource": {
+    "example": {
+     "field": "default_call_url",
+     "pointer": "/settings/default_call_url"
+    },
+    "properties": {
+     "field": {
+      "description": "Field name that is the source of the error",
+      "example": "default_call_url",
+      "type": "string"
+     },
+     "pointer": {
+      "description": "JSON pointer to the request field that is the source of the error",
+      "example": "/settings/default_call_url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "field",
+     "pointer"
+    ],
+    "type": "object"
+   },
+   "ExternalIssueReferenceV2": {
+    "example": {
+     "issue_name": "INC-123",
+     "issue_permalink": "https://linear.app/incident-io/issue/INC-1609/find-copywriter-to-write-up",
+     "provider": "asana"
+    },
+    "properties": {
+     "issue_name": {
+      "description": "Human readable ID for the issue",
+      "example": "INC-123",
+      "type": "string"
+     },
+     "issue_permalink": {
+      "description": "URL linking directly to the action in the issue tracker",
+      "example": "https://linear.app/incident-io/issue/INC-1609/find-copywriter-to-write-up",
+      "type": "string"
+     },
+     "provider": {
+      "description": "ID of the issue tracker provider",
+      "enum": [
+       "asana",
+       "azure_devops",
+       "click_up",
+       "freshservice",
+       "linear",
+       "jira",
+       "salesforce",
+       "jira_server",
+       "github",
+       "gitlab",
+       "service_now",
+       "shortcut",
+       "notion"
+      ],
+      "example": "asana",
+      "type": "string"
+     }
+    },
+    "required": [
+     "provider",
+     "issue_name",
+     "issue_permalink"
+    ],
+    "type": "object"
+   },
+   "IncidentDebriefV2": {
+    "example": {
+     "end_at": "2021-08-17T14:28:57.801578Z",
+     "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+     "start_at": "2021-08-17T13:28:57.801578Z"
+    },
+    "properties": {
+     "end_at": {
+      "description": "When the debrief is scheduled to end",
+      "example": "2021-08-17T14:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique ID of the incident debrief",
+      "example": "01G0J1EXE7AXZ2C93K61WBPYEH",
+      "type": "string"
+     },
+     "start_at": {
+      "description": "When the debrief is scheduled to start",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "start_at",
+     "end_at"
+    ],
+    "type": "object"
+   },
+   "IncidentDurationMetricV2": {
+    "example": {
+     "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+     "name": "Lasted"
+    },
+    "properties": {
+     "id": {
+      "description": "Unique ID of this incident duration metric",
+      "example": "01FCNDV6P870EA6S7TK1DSYD5H",
+      "type": "string"
+     },
+     "name": {
+      "description": "Unique name of this duration metric",
+      "example": "Lasted",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
+   "IncidentDurationMetricWithValueV2": {
+    "example": {
+     "duration_metric": {
+      "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+      "name": "Lasted"
+     },
+     "status": "success",
+     "value_seconds": 10800
+    },
+    "properties": {
+     "duration_metric": {
+      "$ref": "#/components/schemas/IncidentDurationMetricV2"
+     },
+     "status": {
+      "description": "Whether value_seconds matches this incident's current timestamps ('success'), or why it doesn't",
+      "enum": [
+       "success",
+       "timestamps_missing",
+       "calculating",
+       "invalid_timestamps"
+      ],
+      "example": "success",
+      "type": "string"
+     },
+     "value_seconds": {
+      "description": "The duration we last calculated for this metric, omitted if we've never calculated one. If status isn't 'success', this incident's timestamps have changed since and no longer match this value",
+      "example": 10800,
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "duration_metric",
+     "status"
+    ],
+    "type": "object"
+   },
+   "IncidentRoleAssignmentPayloadV2": {
+    "example": {
+     "assignee": {
+      "email": "bob@example.com",
+      "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+      "slack_user_id": "USER123"
+     },
+     "incident_role_id": "01FH5TZRWMNAFB0DZ23FD1TV96"
+    },
+    "properties": {
+     "assignee": {
+      "$ref": "#/components/schemas/UserReferencePayloadV2"
+     },
+     "incident_role_id": {
+      "description": "Unique ID of an incident role. Note that the 'reporter' role can only be assigned when creating an incident.",
+      "example": "01FH5TZRWMNAFB0DZ23FD1TV96",
+      "type": "string"
+     }
+    },
+    "required": [
+     "incident_role_id"
+    ],
+    "type": "object"
+   },
+   "IncidentRoleAssignmentV2": {
+    "example": {
+     "assignee": {
+      "email": "lisa@incident.io",
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "name": "Lisa Karlin Curtis",
+      "role": "owner",
+      "slack_user_id": "U02AYNF2XJM"
+     },
+     "role": {
+      "created_at": "2021-08-17T13:28:57.801578Z",
+      "description": "The person currently coordinating the incident",
+      "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+      "name": "Incident Lead",
+      "required": false,
+      "role_type": "lead",
+      "shortform": "lead",
+      "updated_at": "2021-08-17T13:28:57.801578Z"
+     }
+    },
+    "properties": {
+     "assignee": {
+      "$ref": "#/components/schemas/UserV2"
+     },
+     "role": {
+      "$ref": "#/components/schemas/EmbeddedIncidentRoleV2"
+     }
+    },
+    "required": [
+     "role"
+    ],
+    "type": "object"
+   },
+   "IncidentStatusV2": {
+    "example": {
+     "category": "triage",
+     "created_at": "2021-08-17T13:28:57.801578Z",
+     "description": "Impact has been **fully mitigated**, and we're ready to learn from this incident.",
+     "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+     "name": "Closed",
+     "rank": 4,
+     "updated_at": "2021-08-17T13:28:57.801578Z"
+    },
+    "properties": {
+     "category": {
+      "description": "What category of status it is. All statuses apart from live (renamed in the app to Active) and learning (renamed in the app to Post-incident) are managed by incident.io and cannot be configured",
+      "enum": [
+       "triage",
+       "declined",
+       "merged",
+       "canceled",
+       "live",
+       "learning",
+       "closed",
+       "paused"
+      ],
+      "example": "triage",
+      "type": "string"
+     },
+     "created_at": {
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "description": {
+      "description": "Rich text description of the incident status",
+      "example": "Impact has been **fully mitigated**, and we're ready to learn from this incident.",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique ID of this incident status",
+      "example": "01FCNDV6P870EA6S7TK1DSYD5H",
+      "type": "string"
+     },
+     "name": {
+      "description": "Unique name of this status",
+      "example": "Closed",
+      "type": "string"
+     },
+     "rank": {
+      "description": "Order of this incident status",
+      "example": 4,
+      "format": "int64",
+      "type": "integer"
+     },
+     "updated_at": {
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "description",
+     "rank",
+     "category",
+     "created_at",
+     "updated_at"
+    ],
+    "type": "object"
+   },
+   "IncidentTimestampV2": {
+    "properties": {
+     "id": {
+      "description": "Unique ID of this incident timestamp",
+      "example": "01FCNDV6P870EA6S7TK1DSYD5H",
+      "type": "string"
+     },
+     "name": {
+      "description": "Unique name of this timestamp",
+      "example": "Impact started",
+      "type": "string"
+     },
+     "rank": {
+      "description": "Order in which this timestamp should be shown",
+      "example": 1,
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "rank"
+    ],
+    "type": "object"
+   },
+   "IncidentTimestampValuePayloadV2": {
+    "example": {
+     "incident_timestamp_id": "01FCNDV6P870EA6S7TK1DSYD5H",
+     "value": "2021-08-17T13:28:57.801578Z"
+    },
+    "properties": {
+     "incident_timestamp_id": {
+      "description": "The id of the incident timestamp that this incident timestamp value is associated with.",
+      "example": "01FCNDV6P870EA6S7TK1DSYD5H",
+      "type": "string"
+     },
+     "value": {
+      "description": "The current value of this timestamp, for this incident",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "incident_timestamp_id"
+    ],
+    "type": "object"
+   },
+   "IncidentTimestampValueV2": {
+    "example": {
+     "value": "2021-08-17T13:28:57.801578Z"
+    },
+    "properties": {
+     "value": {
+      "description": "The current value of this timestamp, for this incident",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "IncidentTimestampWithValueV2": {
+    "example": {
+     "incident_timestamp": {
+      "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+      "name": "Impact started",
+      "rank": 1
+     },
+     "value": {
+      "value": "2021-08-17T13:28:57.801578Z"
+     }
+    },
+    "properties": {
+     "incident_timestamp": {
+      "$ref": "#/components/schemas/IncidentTimestampV2"
+     },
+     "value": {
+      "$ref": "#/components/schemas/IncidentTimestampValueV2"
+     }
+    },
+    "required": [
+     "incident_timestamp"
+    ],
+    "type": "object"
+   },
+   "IncidentTypeV2": {
+    "example": {
+     "create_in_triage": "always",
+     "created_at": "2021-08-17T13:28:57.801578Z",
+     "description": "Customer facing production outages",
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "is_default": false,
+     "name": "Production Outage",
+     "private_incidents_only": false,
+     "updated_at": "2021-08-17T13:28:57.801578Z"
+    },
+    "properties": {
+     "create_in_triage": {
+      "description": "Whether incidents of this must always, or can optionally, be created in triage",
+      "enum": [
+       "always",
+       "optional"
+      ],
+      "example": "always",
+      "type": "string"
+     },
+     "created_at": {
+      "description": "When this resource was created",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "description": {
+      "description": "What is this incident type for?",
+      "example": "Customer facing production outages",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique identifier for this Incident Type",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "is_default": {
+      "description": "The default Incident Type is used when no other type is explicitly specified",
+      "example": false,
+      "type": "boolean"
+     },
+     "name": {
+      "description": "The name of this Incident Type",
+      "example": "Production Outage",
+      "type": "string"
+     },
+     "private_incidents_only": {
+      "description": "Should all incidents created with this Incident Type be private?",
+      "example": false,
+      "type": "boolean"
+     },
+     "updated_at": {
+      "description": "When this resource was last updated",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "is_default",
+     "description",
+     "private_incidents_only",
+     "created_at",
+     "updated_at",
+     "create_in_triage"
+    ],
+    "type": "object"
+   },
+   "IncidentV2": {
+    "properties": {
+     "call_url": {
+      "description": "The call URL attached to this incident",
+      "example": "https://zoom.us/foo",
+      "type": "string"
+     },
+     "created_at": {
+      "description": "When the incident was created",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "creator": {
+      "$ref": "#/components/schemas/ActorV2"
+     },
+     "custom_field_entries": {
+      "description": "Custom field entries for this incident",
+      "example": [
+       {
+        "custom_field": {
+         "description": "Which team is impacted by this issue",
+         "field_type": "single_select",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Affected Team",
+         "options": [
+          {
+           "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "sort_key": 10,
+           "value": "Product"
+          }
+         ]
+        },
+        "values": [
+         {
+          "value_catalog_entry": {
+           "aliases": [
+            "lawrence@incident.io",
+            "lawrence"
+           ],
+           "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "name": "Primary On-call"
+          },
+          "value_link": "https://google.com/",
+          "value_numeric": "123.456",
+          "value_option": {
+           "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "sort_key": 10,
+           "value": "Product"
+          },
+          "value_text": "This is my text field, I hope you like it"
+         }
+        ]
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/CustomFieldEntryV2"
+      },
+      "type": "array"
+     },
+     "debriefs": {
+      "description": "Debriefs scheduled for this incident, ordered by start time. Excludes cancelled calendar events.",
+      "example": [
+       {
+        "end_at": "2021-08-17T14:28:57.801578Z",
+        "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z"
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/IncidentDebriefV2"
+      },
+      "type": "array"
+     },
+     "duration_metrics": {
+      "description": "Incident duration metrics and their measurements for this incident",
+      "example": [
+       {
+        "duration_metric": {
+         "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+         "name": "Lasted"
+        },
+        "status": "success",
+        "value_seconds": 10800
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/IncidentDurationMetricWithValueV2"
+      },
+      "type": "array"
+     },
+     "external_issue_reference": {
+      "$ref": "#/components/schemas/ExternalIssueReferenceV2"
+     },
+     "has_debrief": {
+      "description": "If this incident has a debrief attached",
+      "example": false,
+      "type": "boolean"
+     },
+     "id": {
+      "description": "Unique identifier for the incident",
+      "example": "01FDAG4SAP5TYPT98WGR2N7W91",
+      "type": "string"
+     },
+     "incident_role_assignments": {
+      "description": "A list of who is assigned to each role for this incident",
+      "example": [
+       {
+        "assignee": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        },
+        "role": {
+         "created_at": "2021-08-17T13:28:57.801578Z",
+         "description": "The person currently coordinating the incident",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+         "name": "Incident Lead",
+         "required": false,
+         "role_type": "lead",
+         "shortform": "lead",
+         "updated_at": "2021-08-17T13:28:57.801578Z"
+        }
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/IncidentRoleAssignmentV2"
+      },
+      "type": "array"
+     },
+     "incident_status": {
+      "$ref": "#/components/schemas/IncidentStatusV2"
+     },
+     "incident_timestamp_values": {
+      "description": "Incident lifecycle events and when they occurred",
+      "example": [
+       {
+        "incident_timestamp": {
+         "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+         "name": "Impact started",
+         "rank": 1
+        },
+        "value": {
+         "value": "2021-08-17T13:28:57.801578Z"
+        }
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/IncidentTimestampWithValueV2"
+      },
+      "type": "array"
+     },
+     "incident_type": {
+      "$ref": "#/components/schemas/IncidentTypeV2"
+     },
+     "last_activity_at": {
+      "description": "When the incident last recorded 'activity'",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "mode": {
+      "description": "Whether the incident is real, a test, a tutorial, or importing as a retrospective incident",
+      "enum": [
+       "standard",
+       "retrospective",
+       "test",
+       "tutorial"
+      ],
+      "example": "standard",
+      "type": "string"
+     },
+     "ms_teams_channel_url": {
+      "description": "URL to link to the Microsoft Teams channel",
+      "example": "https://teams.microsoft.com/l/channel/19%some-hex%40thread.tacv2/inc-123-title?groupId=some-uuid&tenantId=another-uuid",
+      "type": "string"
+     },
+     "name": {
+      "description": "Explanation of the incident",
+      "example": "Our database is sad",
+      "type": "string"
+     },
+     "permalink": {
+      "description": "A permanent link to the homepage for this incident",
+      "example": "https://app.incident.io/incidents/123",
+      "type": "string"
+     },
+     "postmortem_document_ids": {
+      "description": "An array of IDs of postmortem documents for this incident",
+      "example": [
+       "01FCNDV6P870EA6S7TK1DSYD5H"
+      ],
+      "items": {
+       "example": "01FCNDV6P870EA6S7TK1DSYD5H",
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "postmortem_document_url": {
+      "description": "The URL of the incident post-mortem document",
+      "example": "https://docs.google.com/my_doc_id",
+      "type": "string"
+     },
+     "reference": {
+      "description": "Reference to this incident, as displayed across the product",
+      "example": "INC-123",
+      "type": "string"
+     },
+     "severity": {
+      "$ref": "#/components/schemas/SeverityV2"
+     },
+     "slack_channel_id": {
+      "description": "ID of the Slack channel in the organisation Slack workspace. Note that the channel is sometimes created asynchronously, so may not be present when the incident is just created.",
+      "example": "C02AW36C1M5",
+      "type": "string"
+     },
+     "slack_channel_name": {
+      "description": "Name of the slack channel",
+      "example": "inc-165-green-parrot",
+      "type": "string"
+     },
+     "slack_channel_url": {
+      "description": "URL to link to the slack channel",
+      "example": "https://slack.com/app_redirect?team=T1234&channel=C5678",
+      "type": "string"
+     },
+     "slack_team_id": {
+      "description": "ID of the Slack team / workspace. This is only required if you are using a Slack Enterprise Grid with multiple teams.",
+      "example": "T02A1FSLE8J",
+      "type": "string"
+     },
+     "summary": {
+      "description": "Detailed description of the incident",
+      "example": "Our database is really really sad, and we don't know why yet.",
+      "type": "string"
+     },
+     "team_ids": {
+      "description": "IDs of the teams that own this incident, resolved from your team settings. Empty when no teams match.",
+      "example": [
+       "01JPQA75EPNEES4479P16P4XAB"
+      ],
+      "items": {
+       "example": "01JPQA75EPNEES4479P16P4XAB",
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "updated_at": {
+      "description": "When the incident was last updated",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "visibility": {
+      "description": "Whether the incident should be open to anyone in your Slack workspace (public), or invite-only (private). For more information on Private Incidents see our [docs](https://docs.incident.io/incidents/sensitive-incidents).",
+      "enum": [
+       "public",
+       "private"
+      ],
+      "example": "public",
+      "type": "string"
+     },
+     "workload_minutes_late": {
+      "description": "Amount of time spent on the incident in late hours",
+      "example": 40.7,
+      "format": "double",
+      "type": "number"
+     },
+     "workload_minutes_sleeping": {
+      "description": "Amount of time spent on the incident in sleeping hours",
+      "example": 0,
+      "format": "double",
+      "type": "number"
+     },
+     "workload_minutes_total": {
+      "description": "Amount of time spent on the incident in total",
+      "example": 60.7,
+      "format": "double",
+      "type": "number"
+     },
+     "workload_minutes_working": {
+      "description": "Amount of time spent on the incident in working hours",
+      "example": 20,
+      "format": "double",
+      "type": "number"
+     }
+    },
+    "required": [
+     "incident_status",
+     "last_activity_at",
+     "team_ids",
+     "id",
+     "reference",
+     "name",
+     "visibility",
+     "mode",
+     "creator",
+     "incident_role_assignments",
+     "custom_field_entries",
+     "slack_team_id",
+     "slack_channel_id",
+     "created_at",
+     "updated_at"
+    ],
+    "type": "object"
+   },
+   "IncidentsCreatePayloadV2": {
+    "example": {
+     "custom_field_entries": [
+      {
+       "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "values": [
+        {
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "value_catalog_entry_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "value_link": "https://google.com/",
+         "value_numeric": "123.456",
+         "value_option_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "value_text": "This is my text field, I hope you like it",
+         "value_timestamp": ""
+        }
+       ]
+      }
+     ],
+     "idempotency_key": "alert-uuid",
+     "incident_role_assignments": [
+      {
+       "assignee": {
+        "email": "bob@example.com",
+        "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "slack_user_id": "USER123"
+       },
+       "incident_role_id": "01FH5TZRWMNAFB0DZ23FD1TV96"
+      }
+     ],
+     "incident_status_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+     "incident_timestamp_values": [
+      {
+       "incident_timestamp_id": "01FCNDV6P870EA6S7TK1DSYD5H",
+       "value": "2021-08-17T13:28:57.801578Z"
+      }
+     ],
+     "incident_type_id": "01FH5TZRWMNAFB0DZ23FD1TV96",
+     "mode": "standard",
+     "name": "Our database is sad",
+     "retrospective_incident_options": {
+      "external_id": 123,
+      "postmortem_document_url": "https://docs.google.com/my_doc_id",
+      "slack_channel_id": "abc123"
+     },
+     "severity_id": "01FH5TZRWMNAFB0DZ23FD1TV96",
+     "slack_channel_name_override": "inc-123-database-down",
+     "slack_team_id": "T02A1FSLE8J",
+     "summary": "Our database is really really sad, and we don't know why yet.",
+     "visibility": "public"
+    },
+    "properties": {
+     "custom_field_entries": {
+      "description": "Set the incident's custom fields to these values",
+      "example": [
+       {
+        "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "values": [
+         {
+          "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "value_catalog_entry_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "value_link": "https://google.com/",
+          "value_numeric": "123.456",
+          "value_option_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "value_text": "This is my text field, I hope you like it",
+          "value_timestamp": ""
+         }
+        ]
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/CustomFieldEntryPayloadV2"
+      },
+      "type": "array"
+     },
+     "idempotency_key": {
+      "description": "Unique string used to de-duplicate incident create requests",
+      "example": "alert-uuid",
+      "type": "string"
+     },
+     "incident_role_assignments": {
+      "description": "Assign incident roles to these people",
+      "example": [
+       {
+        "assignee": {
+         "email": "bob@example.com",
+         "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+         "slack_user_id": "USER123"
+        },
+        "incident_role_id": "01FH5TZRWMNAFB0DZ23FD1TV96"
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/IncidentRoleAssignmentPayloadV2"
+      },
+      "type": "array"
+     },
+     "incident_status_id": {
+      "description": "Incident status to assign to the incident",
+      "example": "01G0J1EXE7AXZ2C93K61WBPYEH",
+      "type": "string"
+     },
+     "incident_timestamp_values": {
+      "description": "Assign the incident's timestamps to these values",
+      "example": [
+       {
+        "incident_timestamp_id": "01FCNDV6P870EA6S7TK1DSYD5H",
+        "value": "2021-08-17T13:28:57.801578Z"
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/IncidentTimestampValuePayloadV2"
+      },
+      "type": "array"
+     },
+     "incident_type_id": {
+      "description": "Incident type to create this incident as",
+      "example": "01FH5TZRWMNAFB0DZ23FD1TV96",
+      "type": "string"
+     },
+     "mode": {
+      "description": "Whether the incident is real, a test, a tutorial, or importing as a retrospective incident",
+      "enum": [
+       "standard",
+       "retrospective",
+       "test",
+       "tutorial"
+      ],
+      "example": "standard",
+      "type": "string"
+     },
+     "name": {
+      "description": "Explanation of the incident",
+      "example": "Our database is sad",
+      "type": "string"
+     },
+     "retrospective_incident_options": {
+      "$ref": "#/components/schemas/RetrospectiveIncidentOptionsV2"
+     },
+     "severity_id": {
+      "description": "Severity to create incident as",
+      "example": "01FH5TZRWMNAFB0DZ23FD1TV96",
+      "type": "string"
+     },
+     "slack_channel_name_override": {
+      "description": "Name of the Slack channel to create for this incident",
+      "example": "inc-123-database-down",
+      "type": "string"
+     },
+     "slack_team_id": {
+      "description": "Slack Team to create the incident in",
+      "example": "T02A1FSLE8J",
+      "type": "string"
+     },
+     "summary": {
+      "description": "Detailed description of the incident",
+      "example": "Our database is really really sad, and we don't know why yet.",
+      "type": "string"
+     },
+     "visibility": {
+      "description": "Whether the incident should be open to anyone in your Slack workspace (public), or invite-only (private). For more information on Private Incidents see our [docs](https://docs.incident.io/incidents/sensitive-incidents).",
+      "enum": [
+       "public",
+       "private"
+      ],
+      "example": "public",
+      "type": "string"
+     }
+    },
+    "required": [
+     "idempotency_key",
+     "visibility"
+    ],
+    "type": "object"
+   },
+   "IncidentsCreateResultV2": {
+    "example": {
+     "incident": {
+      "call_url": "https://zoom.us/foo",
+      "created_at": "2021-08-17T13:28:57.801578Z",
+      "creator": {
+       "alert": {
+        "id": "01GW2G3V0S59R238FAHPDS1R66",
+        "title": "*errors.withMessage: PG::Error failed to connect"
+       },
+       "api_key": {
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "My test API key"
+       },
+       "user": {
+        "email": "lisa@incident.io",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "Lisa Karlin Curtis",
+        "role": "owner",
+        "slack_user_id": "U02AYNF2XJM"
+       },
+       "workflow": {
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "My little workflow"
+       }
+      },
+      "custom_field_entries": [
+       {
+        "custom_field": {
+         "description": "Which team is impacted by this issue",
+         "field_type": "single_select",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Affected Team",
+         "options": [
+          {
+           "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "sort_key": 10,
+           "value": "Product"
+          }
+         ]
+        },
+        "values": [
+         {
+          "value_catalog_entry": {
+           "aliases": [
+            "lawrence@incident.io",
+            "lawrence"
+           ],
+           "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "name": "Primary On-call"
+          },
+          "value_link": "https://google.com/",
+          "value_numeric": "123.456",
+          "value_option": {
+           "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "sort_key": 10,
+           "value": "Product"
+          },
+          "value_text": "This is my text field, I hope you like it"
+         }
+        ]
+       }
+      ],
+      "debriefs": [
+       {
+        "end_at": "2021-08-17T14:28:57.801578Z",
+        "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z"
+       }
+      ],
+      "duration_metrics": [
+       {
+        "duration_metric": {
+         "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+         "name": "Lasted"
+        },
+        "status": "success",
+        "value_seconds": 10800
+       }
+      ],
+      "external_issue_reference": {
+       "issue_name": "INC-123",
+       "issue_permalink": "https://linear.app/incident-io/issue/INC-1609/find-copywriter-to-write-up",
+       "provider": "asana"
+      },
+      "has_debrief": false,
+      "id": "01FDAG4SAP5TYPT98WGR2N7W91",
+      "incident_role_assignments": [
+       {
+        "assignee": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        },
+        "role": {
+         "created_at": "2021-08-17T13:28:57.801578Z",
+         "description": "The person currently coordinating the incident",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+         "name": "Incident Lead",
+         "required": false,
+         "role_type": "lead",
+         "shortform": "lead",
+         "updated_at": "2021-08-17T13:28:57.801578Z"
+        }
+       }
+      ],
+      "incident_status": {
+       "category": "triage",
+       "created_at": "2021-08-17T13:28:57.801578Z",
+       "description": "Impact has been **fully mitigated**, and we're ready to learn from this incident.",
+       "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+       "name": "Closed",
+       "rank": 4,
+       "updated_at": "2021-08-17T13:28:57.801578Z"
+      },
+      "incident_timestamp_values": [
+       {
+        "incident_timestamp": {
+         "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+         "name": "Impact started",
+         "rank": 1
+        },
+        "value": {
+         "value": "2021-08-17T13:28:57.801578Z"
+        }
+       }
+      ],
+      "incident_type": {
+       "create_in_triage": "always",
+       "created_at": "2021-08-17T13:28:57.801578Z",
+       "description": "Customer facing production outages",
+       "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "is_default": false,
+       "name": "Production Outage",
+       "private_incidents_only": false,
+       "updated_at": "2021-08-17T13:28:57.801578Z"
+      },
+      "last_activity_at": "2021-08-17T13:28:57.801578Z",
+      "mode": "standard",
+      "ms_teams_channel_url": "https://teams.microsoft.com/l/channel/19%some-hex%40thread.tacv2/inc-123-title?groupId=some-uuid&tenantId=another-uuid",
+      "name": "Our database is sad",
+      "permalink": "https://app.incident.io/incidents/123",
+      "postmortem_document_ids": [
+       "01FCNDV6P870EA6S7TK1DSYD5H"
+      ],
+      "postmortem_document_url": "https://docs.google.com/my_doc_id",
+      "reference": "INC-123",
+      "severity": {
+       "created_at": "2021-08-17T13:28:57.801578Z",
+       "description": "Issues with **low impact**.",
+       "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "name": "Minor",
+       "rank": 1,
+       "updated_at": "2021-08-17T13:28:57.801578Z"
+      },
+      "slack_channel_id": "C02AW36C1M5",
+      "slack_channel_name": "inc-165-green-parrot",
+      "slack_channel_url": "https://slack.com/app_redirect?team=T1234&channel=C5678",
+      "slack_team_id": "T02A1FSLE8J",
+      "summary": "Our database is really really sad, and we don't know why yet.",
+      "team_ids": [
+       "01JPQA75EPNEES4479P16P4XAB"
+      ],
+      "updated_at": "2021-08-17T13:28:57.801578Z",
+      "visibility": "public",
+      "workload_minutes_late": 40.7,
+      "workload_minutes_sleeping": 0,
+      "workload_minutes_total": 60.7,
+      "workload_minutes_working": 20
+     }
+    },
+    "properties": {
+     "incident": {
+      "$ref": "#/components/schemas/IncidentV2"
+     }
+    },
+    "required": [
+     "incident"
+    ],
+    "type": "object"
+   },
+   "IncidentsListResultV2": {
+    "example": {
+     "incidents": [
+      {
+       "call_url": "https://zoom.us/foo",
+       "created_at": "2021-08-17T13:28:57.801578Z",
+       "creator": {
+        "alert": {
+         "id": "01GW2G3V0S59R238FAHPDS1R66",
+         "title": "*errors.withMessage: PG::Error failed to connect"
+        },
+        "api_key": {
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "My test API key"
+        },
+        "user": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        },
+        "workflow": {
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "My little workflow"
+        }
+       },
+       "custom_field_entries": [
+        {
+         "custom_field": {
+          "description": "Which team is impacted by this issue",
+          "field_type": "single_select",
+          "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "name": "Affected Team",
+          "options": [
+           {
+            "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "sort_key": 10,
+            "value": "Product"
+           }
+          ]
+         },
+         "values": [
+          {
+           "value_catalog_entry": {
+            "aliases": [
+             "lawrence@incident.io",
+             "lawrence"
+            ],
+            "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "name": "Primary On-call"
+           },
+           "value_link": "https://google.com/",
+           "value_numeric": "123.456",
+           "value_option": {
+            "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "sort_key": 10,
+            "value": "Product"
+           },
+           "value_text": "This is my text field, I hope you like it"
+          }
+         ]
+        }
+       ],
+       "debriefs": [
+        {
+         "end_at": "2021-08-17T14:28:57.801578Z",
+         "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+         "start_at": "2021-08-17T13:28:57.801578Z"
+        }
+       ],
+       "duration_metrics": [
+        {
+         "duration_metric": {
+          "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+          "name": "Lasted"
+         },
+         "status": "success",
+         "value_seconds": 10800
+        }
+       ],
+       "external_issue_reference": {
+        "issue_name": "INC-123",
+        "issue_permalink": "https://linear.app/incident-io/issue/INC-1609/find-copywriter-to-write-up",
+        "provider": "asana"
+       },
+       "has_debrief": false,
+       "id": "01FDAG4SAP5TYPT98WGR2N7W91",
+       "incident_role_assignments": [
+        {
+         "assignee": {
+          "email": "lisa@incident.io",
+          "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "name": "Lisa Karlin Curtis",
+          "role": "owner",
+          "slack_user_id": "U02AYNF2XJM"
+         },
+         "role": {
+          "created_at": "2021-08-17T13:28:57.801578Z",
+          "description": "The person currently coordinating the incident",
+          "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+          "name": "Incident Lead",
+          "required": false,
+          "role_type": "lead",
+          "shortform": "lead",
+          "updated_at": "2021-08-17T13:28:57.801578Z"
+         }
+        }
+       ],
+       "incident_status": {
+        "category": "triage",
+        "created_at": "2021-08-17T13:28:57.801578Z",
+        "description": "Impact has been **fully mitigated**, and we're ready to learn from this incident.",
+        "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+        "name": "Closed",
+        "rank": 4,
+        "updated_at": "2021-08-17T13:28:57.801578Z"
+       },
+       "incident_timestamp_values": [
+        {
+         "incident_timestamp": {
+          "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+          "name": "Impact started",
+          "rank": 1
+         },
+         "value": {
+          "value": "2021-08-17T13:28:57.801578Z"
+         }
+        }
+       ],
+       "incident_type": {
+        "create_in_triage": "always",
+        "created_at": "2021-08-17T13:28:57.801578Z",
+        "description": "Customer facing production outages",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "is_default": false,
+        "name": "Production Outage",
+        "private_incidents_only": false,
+        "updated_at": "2021-08-17T13:28:57.801578Z"
+       },
+       "last_activity_at": "2021-08-17T13:28:57.801578Z",
+       "mode": "standard",
+       "ms_teams_channel_url": "https://teams.microsoft.com/l/channel/19%some-hex%40thread.tacv2/inc-123-title?groupId=some-uuid&tenantId=another-uuid",
+       "name": "Our database is sad",
+       "permalink": "https://app.incident.io/incidents/123",
+       "postmortem_document_ids": [
+        "01FCNDV6P870EA6S7TK1DSYD5H"
+       ],
+       "postmortem_document_url": "https://docs.google.com/my_doc_id",
+       "reference": "INC-123",
+       "severity": {
+        "created_at": "2021-08-17T13:28:57.801578Z",
+        "description": "Issues with **low impact**.",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "Minor",
+        "rank": 1,
+        "updated_at": "2021-08-17T13:28:57.801578Z"
+       },
+       "slack_channel_id": "C02AW36C1M5",
+       "slack_channel_name": "inc-165-green-parrot",
+       "slack_channel_url": "https://slack.com/app_redirect?team=T1234&channel=C5678",
+       "slack_team_id": "T02A1FSLE8J",
+       "summary": "Our database is really really sad, and we don't know why yet.",
+       "team_ids": [
+        "01JPQA75EPNEES4479P16P4XAB"
+       ],
+       "updated_at": "2021-08-17T13:28:57.801578Z",
+       "visibility": "public",
+       "workload_minutes_late": 40.7,
+       "workload_minutes_sleeping": 0,
+       "workload_minutes_total": 60.7,
+       "workload_minutes_working": 20
+      }
+     ],
+     "pagination_meta": {
+      "after": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "page_size": 25,
+      "total_record_count": 238
+     }
+    },
+    "properties": {
+     "incidents": {
+      "example": [
+       {
+        "call_url": "https://zoom.us/foo",
+        "created_at": "2021-08-17T13:28:57.801578Z",
+        "creator": {
+         "alert": {
+          "id": "01GW2G3V0S59R238FAHPDS1R66",
+          "title": "*errors.withMessage: PG::Error failed to connect"
+         },
+         "api_key": {
+          "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "name": "My test API key"
+         },
+         "user": {
+          "email": "lisa@incident.io",
+          "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "name": "Lisa Karlin Curtis",
+          "role": "owner",
+          "slack_user_id": "U02AYNF2XJM"
+         },
+         "workflow": {
+          "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "name": "My little workflow"
+         }
+        },
+        "custom_field_entries": [
+         {
+          "custom_field": {
+           "description": "Which team is impacted by this issue",
+           "field_type": "single_select",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "name": "Affected Team",
+           "options": [
+            {
+             "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "sort_key": 10,
+             "value": "Product"
+            }
+           ]
+          },
+          "values": [
+           {
+            "value_catalog_entry": {
+             "aliases": [
+              "lawrence@incident.io",
+              "lawrence"
+             ],
+             "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "Primary On-call"
+            },
+            "value_link": "https://google.com/",
+            "value_numeric": "123.456",
+            "value_option": {
+             "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "sort_key": 10,
+             "value": "Product"
+            },
+            "value_text": "This is my text field, I hope you like it"
+           }
+          ]
+         }
+        ],
+        "debriefs": [
+         {
+          "end_at": "2021-08-17T14:28:57.801578Z",
+          "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+          "start_at": "2021-08-17T13:28:57.801578Z"
+         }
+        ],
+        "duration_metrics": [
+         {
+          "duration_metric": {
+           "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+           "name": "Lasted"
+          },
+          "status": "success",
+          "value_seconds": 10800
+         }
+        ],
+        "external_issue_reference": {
+         "issue_name": "INC-123",
+         "issue_permalink": "https://linear.app/incident-io/issue/INC-1609/find-copywriter-to-write-up",
+         "provider": "asana"
+        },
+        "has_debrief": false,
+        "id": "01FDAG4SAP5TYPT98WGR2N7W91",
+        "incident_role_assignments": [
+         {
+          "assignee": {
+           "email": "lisa@incident.io",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "name": "Lisa Karlin Curtis",
+           "role": "owner",
+           "slack_user_id": "U02AYNF2XJM"
+          },
+          "role": {
+           "created_at": "2021-08-17T13:28:57.801578Z",
+           "description": "The person currently coordinating the incident",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+           "name": "Incident Lead",
+           "required": false,
+           "role_type": "lead",
+           "shortform": "lead",
+           "updated_at": "2021-08-17T13:28:57.801578Z"
+          }
+         }
+        ],
+        "incident_status": {
+         "category": "triage",
+         "created_at": "2021-08-17T13:28:57.801578Z",
+         "description": "Impact has been **fully mitigated**, and we're ready to learn from this incident.",
+         "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+         "name": "Closed",
+         "rank": 4,
+         "updated_at": "2021-08-17T13:28:57.801578Z"
+        },
+        "incident_timestamp_values": [
+         {
+          "incident_timestamp": {
+           "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+           "name": "Impact started",
+           "rank": 1
+          },
+          "value": {
+           "value": "2021-08-17T13:28:57.801578Z"
+          }
+         }
+        ],
+        "incident_type": {
+         "create_in_triage": "always",
+         "created_at": "2021-08-17T13:28:57.801578Z",
+         "description": "Customer facing production outages",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "is_default": false,
+         "name": "Production Outage",
+         "private_incidents_only": false,
+         "updated_at": "2021-08-17T13:28:57.801578Z"
+        },
+        "last_activity_at": "2021-08-17T13:28:57.801578Z",
+        "mode": "standard",
+        "ms_teams_channel_url": "https://teams.microsoft.com/l/channel/19%some-hex%40thread.tacv2/inc-123-title?groupId=some-uuid&tenantId=another-uuid",
+        "name": "Our database is sad",
+        "permalink": "https://app.incident.io/incidents/123",
+        "postmortem_document_ids": [
+         "01FCNDV6P870EA6S7TK1DSYD5H"
+        ],
+        "postmortem_document_url": "https://docs.google.com/my_doc_id",
+        "reference": "INC-123",
+        "severity": {
+         "created_at": "2021-08-17T13:28:57.801578Z",
+         "description": "Issues with **low impact**.",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Minor",
+         "rank": 1,
+         "updated_at": "2021-08-17T13:28:57.801578Z"
+        },
+        "slack_channel_id": "C02AW36C1M5",
+        "slack_channel_name": "inc-165-green-parrot",
+        "slack_channel_url": "https://slack.com/app_redirect?team=T1234&channel=C5678",
+        "slack_team_id": "T02A1FSLE8J",
+        "summary": "Our database is really really sad, and we don't know why yet.",
+        "team_ids": [
+         "01JPQA75EPNEES4479P16P4XAB"
+        ],
+        "updated_at": "2021-08-17T13:28:57.801578Z",
+        "visibility": "public",
+        "workload_minutes_late": 40.7,
+        "workload_minutes_sleeping": 0,
+        "workload_minutes_total": 60.7,
+        "workload_minutes_working": 20
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/IncidentV2"
+      },
+      "type": "array"
+     },
+     "pagination_meta": {
+      "$ref": "#/components/schemas/PaginationMetaResultWithTotalV2"
+     }
+    },
+    "required": [
+     "incidents"
+    ],
+    "type": "object"
+   },
+   "PaginationMetaResultWithTotalV2": {
+    "example": {
+     "after": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "page_size": 25,
+     "total_record_count": 238
+    },
+    "properties": {
+     "after": {
+      "description": "If provided, pass this as the 'after' param to load the next page",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "page_size": {
+      "default": 25,
+      "description": "What was the maximum number of results requested",
+      "example": 25,
+      "format": "int64",
+      "maximum": 250,
+      "type": "integer"
+     },
+     "total_record_count": {
+      "description": "How many matching records were there in total, if known",
+      "example": 238,
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "page_size"
+    ],
+    "type": "object"
+   },
+   "RetrospectiveIncidentOptionsV2": {
+    "example": {
+     "external_id": 123,
+     "postmortem_document_url": "https://docs.google.com/my_doc_id",
+     "slack_channel_id": "abc123"
+    },
+    "properties": {
+     "external_id": {
+      "description": "The external ID (e.g. the 123 in INC-123) to assign to the incident. This can be useful when importing incidents. If you want to use this field, you'll need to talk to us first.",
+      "example": 123,
+      "format": "int64",
+      "type": "integer"
+     },
+     "postmortem_document_url": {
+      "description": "The URL of the postmortem, if there is one",
+      "example": "https://docs.google.com/my_doc_id",
+      "type": "string"
+     },
+     "slack_channel_id": {
+      "description": "Pass the ID of a Slack channel to attach the incident to an existing channel. If not provided, no Slack channel will be created for this retrospective incident.",
+      "example": "abc123",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "ScheduleEntriesListPayloadV2": {
+    "description": "The schedule entries for a window of time, grouped by where they come from.\n\n`scheduled` are the entries produced by the schedule's rotation rules before\nany overrides are taken into account. `overrides` are the one-off changes that\napply within the window. `final` is the effective schedule after overrides\nhave been merged in \u2014 this is normally the list to use when working out who\nis on-call.",
+    "example": {
+     "final": [
+      {
+       "end_at": "2021-08-17T13:28:57.801578Z",
+       "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "start_at": "2021-08-17T13:28:57.801578Z",
+       "user": {
+        "email": "lisa@incident.io",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "Lisa Karlin Curtis",
+        "role": "owner",
+        "slack_user_id": "U02AYNF2XJM"
+       }
+      }
+     ],
+     "overrides": [
+      {
+       "end_at": "2021-08-17T13:28:57.801578Z",
+       "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "start_at": "2021-08-17T13:28:57.801578Z",
+       "user": {
+        "email": "lisa@incident.io",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "Lisa Karlin Curtis",
+        "role": "owner",
+        "slack_user_id": "U02AYNF2XJM"
+       }
+      }
+     ],
+     "scheduled": [
+      {
+       "end_at": "2021-08-17T13:28:57.801578Z",
+       "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+       "start_at": "2021-08-17T13:28:57.801578Z",
+       "user": {
+        "email": "lisa@incident.io",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "Lisa Karlin Curtis",
+        "role": "owner",
+        "slack_user_id": "U02AYNF2XJM"
+       }
+      }
+     ]
+    },
+    "properties": {
+     "final": {
+      "description": "The effective schedule after overrides have been merged in",
+      "example": [
+       {
+        "end_at": "2021-08-17T13:28:57.801578Z",
+        "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z",
+        "user": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        }
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/ScheduleEntryV2"
+      },
+      "type": "array"
+     },
+     "overrides": {
+      "description": "Overrides that apply within the requested window",
+      "example": [
+       {
+        "end_at": "2021-08-17T13:28:57.801578Z",
+        "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z",
+        "user": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        }
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/ScheduleEntryV2"
+      },
+      "type": "array"
+     },
+     "scheduled": {
+      "description": "Entries from the schedule's rotation rules, before overrides are applied",
+      "example": [
+       {
+        "end_at": "2021-08-17T13:28:57.801578Z",
+        "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z",
+        "user": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        }
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/ScheduleEntryV2"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "scheduled",
+     "overrides",
+     "final"
+    ],
+    "type": "object"
+   },
+   "ScheduleEntryV2": {
+    "description": "A single shift on a schedule, representing who is on-call between a start\nand end time. When present, `rotation_id` tells you which rotation the\nentry belongs to. A schedule may have multiple rotations (for example, a\nprimary and a secondary rotation) and each rotation can be made up of several\nlayers \u2014 entries are returned for every rotation and layer on the schedule.\n\nEntries come from two places: they are either generated from a schedule's\nrotation configuration (the regular pattern of who is on-call) or created by\nan override (a one-off change that replaces the normal rotation for a period\nof time). When you call the List schedule entries endpoint we return both\nkinds separately, along with the merged `final` schedule that reflects what\nwill actually happen.\n\n`entry_id` is only populated for entries that correspond to a stored\nrecord. Scheduled entries are projections computed from the rotation rules\non the fly and don't have a persisted ID, so `entry_id` will be absent for\nthose. Use `fingerprint` if you need a stable identifier to deduplicate or\ndiff a shift across requests.",
+    "properties": {
+     "end_at": {
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "entry_id": {
+      "description": "Unique identifier of the schedule entry",
+      "example": "01G0J1EXE7AXZ2C93K61WBPYEH",
+      "type": "string"
+     },
+     "fingerprint": {
+      "description": "A unique identifier for this entry, used to determine a unique shift",
+      "example": "01G0J1EXE7AXZ2C93K61WBPYEH",
+      "type": "string"
+     },
+     "rotation_id": {
+      "description": "If present, the rotation this entry applies to on the schedule",
+      "example": "01G0J1EXE7AXZ2C93K61WBPYEH",
+      "type": "string"
+     },
+     "start_at": {
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "user": {
+      "$ref": "#/components/schemas/UserV2"
+     }
+    },
+    "required": [
+     "start_at",
+     "end_at"
+    ],
+    "type": "object"
+   },
+   "SchedulesListScheduleEntriesResultV2": {
+    "example": {
+     "pagination_meta": {
+      "after": "abc123",
+      "after_url": "abc123"
+     },
+     "schedule_entries": {
+      "final": [
+       {
+        "end_at": "2021-08-17T13:28:57.801578Z",
+        "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z",
+        "user": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        }
+       }
+      ],
+      "overrides": [
+       {
+        "end_at": "2021-08-17T13:28:57.801578Z",
+        "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z",
+        "user": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        }
+       }
+      ],
+      "scheduled": [
+       {
+        "end_at": "2021-08-17T13:28:57.801578Z",
+        "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "start_at": "2021-08-17T13:28:57.801578Z",
+        "user": {
+         "email": "lisa@incident.io",
+         "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+         "name": "Lisa Karlin Curtis",
+         "role": "owner",
+         "slack_user_id": "U02AYNF2XJM"
+        }
+       }
+      ]
+     }
+    },
+    "properties": {
+     "pagination_meta": {
+      "$ref": "#/components/schemas/AfterPaginationMetaResultV2"
+     },
+     "schedule_entries": {
+      "$ref": "#/components/schemas/ScheduleEntriesListPayloadV2"
+     }
+    },
+    "required": [
+     "schedule_entries"
+    ],
+    "type": "object"
+   },
+   "SeveritiesListResultV1": {
+    "example": {
+     "severities": [
+      {
+       "created_at": "2021-08-17T13:28:57.801578Z",
+       "description": "Issues with **low impact**.",
+       "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+       "name": "Minor",
+       "rank": 1,
+       "updated_at": "2021-08-17T13:28:57.801578Z"
+      }
+     ]
+    },
+    "properties": {
+     "severities": {
+      "example": [
+       {
+        "created_at": "2021-08-17T13:28:57.801578Z",
+        "description": "Issues with **low impact**.",
+        "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+        "name": "Minor",
+        "rank": 1,
+        "updated_at": "2021-08-17T13:28:57.801578Z"
+       }
+      ],
+      "items": {
+       "$ref": "#/components/schemas/SeverityV1"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "severities"
+    ],
+    "type": "object"
+   },
+   "SeverityV1": {
+    "properties": {
+     "created_at": {
+      "description": "When the action was created",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "description": {
+      "description": "Description of the severity",
+      "example": "Issues with **low impact**.",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique identifier of the severity",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "name": {
+      "description": "Human readable name of the severity",
+      "example": "Minor",
+      "maxLength": 50,
+      "type": "string"
+     },
+     "rank": {
+      "description": "Rank to help sort severities (lower numbers are less severe)",
+      "example": 1,
+      "format": "int64",
+      "type": "integer"
+     },
+     "updated_at": {
+      "description": "When the action was last updated",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "rank",
+     "created_at",
+     "updated_at",
+     "id",
+     "name",
+     "description"
+    ],
+    "type": "object"
+   },
+   "SeverityV2": {
+    "example": {
+     "created_at": "2021-08-17T13:28:57.801578Z",
+     "description": "Issues with **low impact**.",
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "name": "Minor",
+     "rank": 1,
+     "updated_at": "2021-08-17T13:28:57.801578Z"
+    },
+    "properties": {
+     "created_at": {
+      "description": "When the action was created",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     },
+     "description": {
+      "description": "Description of the severity",
+      "example": "Issues with **low impact**.",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique identifier of the severity",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "name": {
+      "description": "Human readable name of the severity",
+      "example": "Minor",
+      "maxLength": 50,
+      "type": "string"
+     },
+     "rank": {
+      "description": "Rank to help sort severities (lower numbers are less severe)",
+      "example": 1,
+      "format": "int64",
+      "type": "integer"
+     },
+     "updated_at": {
+      "description": "When the action was last updated",
+      "example": "2021-08-17T13:28:57.801578Z",
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "description",
+     "rank",
+     "created_at",
+     "updated_at"
+    ],
+    "type": "object"
+   },
+   "UserReferencePayloadV2": {
+    "example": {
+     "email": "bob@example.com",
+     "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+     "slack_user_id": "USER123"
+    },
+    "properties": {
+     "email": {
+      "description": "The user's email address, matching the email on their Slack account",
+      "example": "bob@example.com",
+      "type": "string"
+     },
+     "id": {
+      "description": "The incident.io ID of a user",
+      "example": "01G0J1EXE7AXZ2C93K61WBPYEH",
+      "type": "string"
+     },
+     "slack_user_id": {
+      "description": "The ID of the user's Slack account.",
+      "example": "USER123",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "UserV2": {
+    "example": {
+     "email": "lisa@incident.io",
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "name": "Lisa Karlin Curtis",
+     "role": "owner",
+     "slack_user_id": "U02AYNF2XJM"
+    },
+    "properties": {
+     "email": {
+      "description": "Email address of the user.",
+      "example": "lisa@incident.io",
+      "type": "string"
+     },
+     "id": {
+      "description": "Unique identifier of the user",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "name": {
+      "description": "Name of the user",
+      "example": "Lisa Karlin Curtis",
+      "type": "string"
+     },
+     "role": {
+      "description": "DEPRECATED: Role of the user as of March 9th 2023, this value is no longer updated.",
+      "enum": [
+       "viewer",
+       "responder",
+       "administrator",
+       "owner",
+       "unset"
+      ],
+      "example": "owner",
+      "type": "string"
+     },
+     "slack_user_id": {
+      "description": "Slack ID of the user",
+      "example": "U02AYNF2XJM",
+      "type": "string"
+     }
+    },
+    "required": [
+     "role",
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
+   "WorkflowActorV2": {
+    "example": {
+     "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+     "name": "My little workflow"
+    },
+    "properties": {
+     "id": {
+      "description": "Unique identifier for the workflow",
+      "example": "01FCNDV6P870EA6S7TK1DSYDG0",
+      "type": "string"
+     },
+     "name": {
+      "description": "Name provided by the user when creating the workflow",
+      "example": "My little workflow",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ "paths": {
+  "/v1/severities": {
+   "get": {
+    "description": "List all incident severities for an organisation.",
+    "operationId": "Severities V1_List",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "example": {
+         "severities": [
+          {
+           "created_at": "2021-08-17T13:28:57.801578Z",
+           "description": "Issues with **low impact**.",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "name": "Minor",
+           "rank": 1,
+           "updated_at": "2021-08-17T13:28:57.801578Z"
+          }
+         ]
+        },
+        "schema": {
+         "$ref": "#/components/schemas/SeveritiesListResultV1"
+        }
+       }
+      },
+      "description": "OK response."
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "invalid_request_error: There was a problem with the request, like a missing header or querying a resource that doesn't exist."
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "authentication_error: Authentication failed."
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "resource_forbidden: Access to this resource is forbidden for the authenticated user."
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_found: The referenced resource could not be found."
+     },
+     "405": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "method_not_allowed: The endpoint does not support this operation for the specified resource."
+     },
+     "406": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_acceptable: Requested a media type this endpoint does not support."
+     },
+     "408": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "request_timeout: The request took too long to process.\n\nclient_timeout: The request was cancelled by the client."
+     },
+     "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "conflict: Request conflicted with current state of the resource, likely a concurrent update."
+     },
+     "412": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "precondition_failed: A required condition hasn't been met."
+     },
+     "413": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "payload_too_large: The request payload is too large."
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "validation_error: A required field was not provided, or the provided data was invalid."
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "too_many_requests: Too many requests hit the API too quickly. We recommend an exponential backoff of your requests.\n\nrate_limit_reached: The rate limit associated with this resource or API key has been exceeded. Try again later."
+     },
+     "500": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "api_error: Something went wrong and has been reported internally."
+     }
+    },
+    "summary": "List",
+    "tags": [
+     "Severities V1"
+    ],
+    "x-docs-display-name": "List",
+    "x-docs-group-name": "Severities V1",
+    "x-docs-resource-type": "SeverityV1",
+    "x-mint": {
+     "content": "\ud83d\udd11 Requires the `severities.view` scope."
+    },
+    "x-rbac-scopes": [
+     "severities.view"
+    ]
+   }
+  },
+  "/v2/alert_events/http/{alert_source_config_id}": {
+   "post": {
+    "description": "Create an alert event using an HTTP source.",
+    "operationId": "Alert Events V2_CreateHTTP",
+    "parameters": [
+     {
+      "allowEmptyValue": true,
+      "description": "Token used to authenticate the request, generated when configuring the alert source. Will be consumed via a URL query string parameter",
+      "example": "some-random-string",
+      "in": "query",
+      "name": "token",
+      "schema": {
+       "description": "Token used to authenticate the request, generated when configuring the alert source. Will be consumed via a URL query string parameter",
+       "example": "some-random-string",
+       "type": "string"
+      }
+     },
+     {
+      "description": "Which alert source config produced this alert",
+      "examples": {
+       "default": {
+        "summary": "default",
+        "value": "01GW2G3V0S59R238FAHPDS1R66"
+       }
+      },
+      "in": "path",
+      "name": "alert_source_config_id",
+      "required": true,
+      "schema": {
+       "description": "Which alert source config produced this alert",
+       "example": "01GW2G3V0S59R238FAHPDS1R66",
+       "type": "string"
+      }
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Whatever is provided in the Authorization header. We support either Basic or Bearer authorization with the secret provided on the alert source.",
+      "example": "some-random-string",
+      "in": "header",
+      "name": "authorization",
+      "schema": {
+       "description": "Whatever is provided in the Authorization header. We support either Basic or Bearer authorization with the secret provided on the alert source.",
+       "example": "some-random-string",
+       "type": "string"
+      }
+     },
+     {
+      "description": "Query parameters",
+      "in": "query",
+      "name": "query",
+      "schema": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "style": "deepObject"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "example": {
+        "deduplication_key": "4293868629",
+        "description": "We've detected a number of timeouts on hello.world.com, the service may be down. To fix...",
+        "metadata": {
+         "service": "hello.world.com",
+         "team": [
+          "my-team"
+         ]
+        },
+        "source_url": "https://www.my-alerting-platform.com/alerts/my-alert-123",
+        "status": "firing",
+        "title": "*errors.withMessage: PG::Error failed to connect"
+       },
+       "schema": {
+        "$ref": "#/components/schemas/AlertEventsCreateHTTPPayloadV2"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "example": {
+         "deduplication_key": "unique-key",
+         "message": "Event accepted for processing",
+         "status": "success"
+        },
+        "schema": {
+         "$ref": "#/components/schemas/AlertEventsCreateHTTPResultV2"
+        }
+       }
+      },
+      "description": "Accepted response."
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "invalid_request_error: There was a problem with the request, like a missing header or querying a resource that doesn't exist."
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "authentication_error: Authentication failed."
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "resource_forbidden: Access to this resource is forbidden for the authenticated user."
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_found: The referenced resource could not be found."
+     },
+     "405": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "method_not_allowed: The endpoint does not support this operation for the specified resource."
+     },
+     "406": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_acceptable: Requested a media type this endpoint does not support."
+     },
+     "408": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "request_timeout: The request took too long to process.\n\nclient_timeout: The request was cancelled by the client."
+     },
+     "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "conflict: Request conflicted with current state of the resource, likely a concurrent update."
+     },
+     "412": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "precondition_failed: A required condition hasn't been met."
+     },
+     "413": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "payload_too_large: The request payload is too large."
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "validation_error: A required field was not provided, or the provided data was invalid."
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "too_many_requests: Too many requests hit the API too quickly. We recommend an exponential backoff of your requests.\n\nrate_limit_reached: The rate limit associated with this resource or API key has been exceeded. Try again later."
+     },
+     "500": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "api_error: Something went wrong and has been reported internally."
+     }
+    },
+    "security": [],
+    "summary": "Create",
+    "tags": [
+     "Alert Events V2"
+    ],
+    "x-docs-display-name": "Create",
+    "x-docs-group-name": "Alert Events V2",
+    "x-docs-resource-type": "AlertResultV2"
+   }
+  },
+  "/v2/incidents": {
+   "get": {
+    "description": "List all incidents for an organisation.\n\nThis endpoint supports a number of filters, which can help find incidents matching certain\ncriteria.\n\nFilters are provided as query parameters, but due to the dynamic nature of what you can\nquery by (different accounts have different custom fields, statuses, etc) they are more\ncomplex than most.\n\nThe maximum page size that can be requested is 250.\n\nTo help, here are some exemplar curl requests with a human description of what they search\nfor.\n\nNote that:\n- Filters may be combined using the filter_mode parameter: 'all' (default) requires all filters\nto match (AND logic), while 'any' requires at least one filter to match (OR logic).\n- IDs are normally in UUID format, but have been replaced with shorter strings to improve\nreadability.\n- All query parameters must be URI encoded.\n\n### By status\n\nWith status of id=ABC, find all incidents that are set to that status:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'status[one_of]=ABC'\n```\n\nOr all incidents that are not set to status with id=ABC:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'status[not_in]=ABC'\n```\n\n### By created_at or updated_at\n\nFind all incidents that follow specified date parameters for created_at and updated_at fields.\nPossible values are \"gte\" (greater than or equal to), \"lte\" (less than or equal to), and\n\"date_range\" (between two dates). The following example finds all incidents created before\nor on 2021-01-02T00:00:00Z:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'created_at[lte]=2021-01-02'\n```\n\nTo find incidents created within a specific date range, use the date_range option with\ntilde-separated dates:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'created_at[date_range]=2024-12-02~2024-12-08'\n```\n\n### By status category\n\nFind all incidents that are in a status category. Some categories use a different\nname in the API than the one shown in the dashboard \u2014 most notably \"live\" (shown as\n\"Active\") and \"learning\" (shown as \"Post-incident\"). The full mapping is:\n\n| API value  | Shown in app as |\n| ---------- | --------------- |\n| triage     | Triage          |\n| live       | Active          |\n| learning   | Post-incident   |\n| paused     | Paused          |\n| closed     | Closed          |\n| declined   | Declined        |\n| canceled   | Canceled        |\n| merged     | Merged          |\n\nFor example, to find all incidents the dashboard shows as \"Active\", filter on the\n\"live\" category:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'status_category[one_of]=live'\n```\n\nOr all incidents that are not in a status category:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'status_category[not_in]=live'\n```\n\n\n### By severity\n\nWith severity of id=ABC, find all incidents that are set to that severity:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'severity[one_of]=ABC'\n```\n\nOr all incidents where severity rank is greater-than-or-equal-to the rank of severity\nid=ABC:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'severity[gte]=ABC'\n```\n\nOr all incidents where severity rank is less-than-or-equal-to the rank of severity id=ABC:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'severity[lte]=ABC'\n```\n\n### By incident type\n\nWith incident type of id=ABC, find all incidents that are of that type:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'incident_type[one_of]=ABC'\n```\n\nOr all incidents not of that type:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'incident_type[not_in]=ABC'\n```\n\n### By incident mode\n\nBy default, we return standard and retrospective incidents. This means that test and\ntutorial incidents are filtered out. To override this behaviour, you can use the\nmode filter to specify which modes you want to get.\n\nTo find incidents of all modes:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'mode[one_of]=standard&mode[one_of]=retrospective&mode[one_of]=test&mode[one_of]=tutorial'\n```\n\nTo find just test incidents:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'mode[one_of]=test'\n```\n\n\n### By incident role\n\nRoles and custom fields have another nested layer in the query parameter, to account for\noperations against any of the roles or custom fields created in the account.\n\nWith incident role id=ABC, find all incidents where that role is unset:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'incident_role[ABC][is_set]=true'\n```\n\nOr where the role has been set:\n\n```bash\ncurl --get 'https://api.incident.io/v2/incidents' \\\n--data 'incident_role[ABC][is_set]=false'\n```\n\n### By option custom fields\n\nWith an option custom field id=ABC, all incidents that have field ABC set to the custom\nfield option of id=XYZ:\n\n```bash\ncurl \\\n--get 'https://api.incident.io/v2/incidents' \\\n--data 'custom_field[ABC][one_of]=XYZ'\n```\n\nOr all incidents that do not have custom field id=ABC set to option id=XYZ:\n\n```bash\ncurl \\\n--get 'https://api.incident.io/v2/incidents' \\\n--data 'custom_field[ABC][not_in]=XYZ'\n```\n\n### Sorting\n\nBy default, results are ordered by their creation date. You can use the sort_by parameter\nto reverse this order:\n\n```bash\ncurl \\\n--get 'https://api.incident.io/v2/incidents' \\\n--data 'sort_by=created_at_oldest_first'\n```\n",
+    "operationId": "Incidents V2_List",
+    "parameters": [
+     {
+      "allowEmptyValue": true,
+      "description": "Integer number of records to return",
+      "example": 25,
+      "in": "query",
+      "name": "page_size",
+      "schema": {
+       "default": 25,
+       "description": "Integer number of records to return",
+       "example": 25,
+       "format": "int64",
+       "maximum": 500,
+       "minimum": 1,
+       "type": "integer"
+      }
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "An incident's ID. This endpoint will return a list of incidents after this ID in relation to the API response order.",
+      "examples": {
+       "default": {
+        "summary": "default",
+        "value": "01FDAG4SAP5TYPT98WGR2N7W91"
+       }
+      },
+      "in": "query",
+      "name": "after",
+      "schema": {
+       "description": "An incident's ID. This endpoint will return a list of incidents after this ID in relation to the API response order.",
+       "example": "01FDAG4SAP5TYPT98WGR2N7W91",
+       "type": "string"
+      }
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "What order to return results in.",
+      "example": "created_at_newest_first",
+      "in": "query",
+      "name": "sort_by",
+      "schema": {
+       "default": "created_at_newest_first",
+       "description": "What order to return results in.",
+       "enum": [
+        "created_at_newest_first",
+        "created_at_oldest_first"
+       ],
+       "example": "created_at_newest_first",
+       "type": "string"
+      }
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "How to combine the filters: 'all' combines them with AND logic (all must match), 'any' combines them with OR logic (any can match). Defaults to 'all'.",
+      "example": "all",
+      "in": "query",
+      "name": "filter_mode",
+      "schema": {
+       "description": "How to combine the filters: 'all' combines them with AND logic (all must match), 'any' combines them with OR logic (any can match). Defaults to 'all'.",
+       "enum": [
+        "all",
+        "any"
+       ],
+       "example": "all",
+       "type": "string"
+      }
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on incident status. The accepted operators are 'one_of', or 'not_in'.",
+      "example": {
+       "one_of": [
+        "01GBSQF3FHF7FWZQNWGHAVQ804"
+       ]
+      },
+      "explode": true,
+      "in": "query",
+      "name": "status",
+      "schema": {
+       "additionalProperties": {
+        "example": [
+         "some_value"
+        ],
+        "items": {
+         "example": "some_value",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "description": "Filter on incident status. The accepted operators are 'one_of', or 'not_in'.",
+       "example": {
+        "one_of": [
+         "01GBSQF3FHF7FWZQNWGHAVQ804"
+        ]
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on the category of the incidents status. The accepted operators are 'one_of', or 'not_in'.",
+      "example": {
+       "one_of": [
+        "active"
+       ]
+      },
+      "explode": true,
+      "in": "query",
+      "name": "status_category",
+      "schema": {
+       "additionalProperties": {
+        "example": [
+         "some_value"
+        ],
+        "items": {
+         "example": "some_value",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "description": "Filter on the category of the incidents status. The accepted operators are 'one_of', or 'not_in'.",
+       "example": {
+        "one_of": [
+         "active"
+        ]
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on incident created at timestamp. The accepted operators are 'gte', 'lte' and 'date_range'.",
+      "example": {
+       "gte": [
+        "2024-05-01"
+       ]
+      },
+      "explode": true,
+      "in": "query",
+      "name": "created_at",
+      "schema": {
+       "additionalProperties": {
+        "example": [
+         "some_value"
+        ],
+        "items": {
+         "example": "some_value",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "description": "Filter on incident created at timestamp. The accepted operators are 'gte', 'lte' and 'date_range'.",
+       "example": {
+        "gte": [
+         "2024-05-01"
+        ]
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on incident updated at timestamp. The accepted operators are 'gte', 'lte' and 'date_range'.",
+      "example": {
+       "gte": [
+        "2024-05-01"
+       ]
+      },
+      "explode": true,
+      "in": "query",
+      "name": "updated_at",
+      "schema": {
+       "additionalProperties": {
+        "example": [
+         "some_value"
+        ],
+        "items": {
+         "example": "some_value",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "description": "Filter on incident updated at timestamp. The accepted operators are 'gte', 'lte' and 'date_range'.",
+       "example": {
+        "gte": [
+         "2024-05-01"
+        ]
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on incident severity. The accepted operators are 'one_of', 'not_in', 'gte', 'lte'.",
+      "example": {
+       "one_of": [
+        "01GBSQF3FHF7FWZQNWGHAVQ804"
+       ]
+      },
+      "explode": true,
+      "in": "query",
+      "name": "severity",
+      "schema": {
+       "additionalProperties": {
+        "example": [
+         "some_value"
+        ],
+        "items": {
+         "example": "some_value",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "description": "Filter on incident severity. The accepted operators are 'one_of', 'not_in', 'gte', 'lte'.",
+       "example": {
+        "one_of": [
+         "01GBSQF3FHF7FWZQNWGHAVQ804"
+        ]
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on incident type. The accepted operators are 'one_of, or 'not_in'.",
+      "example": {
+       "one_of": [
+        "01GBSQF3FHF7FWZQNWGHAVQ804"
+       ]
+      },
+      "explode": true,
+      "in": "query",
+      "name": "incident_type",
+      "schema": {
+       "additionalProperties": {
+        "example": [
+         "some_value"
+        ],
+        "items": {
+         "example": "some_value",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "description": "Filter on incident type. The accepted operators are 'one_of, or 'not_in'.",
+       "example": {
+        "one_of": [
+         "01GBSQF3FHF7FWZQNWGHAVQ804"
+        ]
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on an incident role. Role ID should be sent, along with backlink attribute ID (if needed) followed by the operator and values. The accepted operators are 'one_of', 'is_blank'.",
+      "example": {
+       "01GBSQF3FHF7FWZQNWGHAVQ804": {
+        "one_of": [
+         "01GBSQF3FHF7FWZQNWGHAVQ804",
+         "01ET65M7ZARSFZ6TFDFVQDN9AA"
+        ]
+       }
+      },
+      "explode": true,
+      "in": "query",
+      "name": "incident_role",
+      "schema": {
+       "additionalProperties": {
+        "additionalProperties": {
+         "example": [
+          "value"
+         ],
+         "items": {
+          "example": "value",
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "example": {
+         "abc123": [
+          "value"
+         ]
+        },
+        "type": "object"
+       },
+       "description": "Filter on an incident role. Role ID should be sent, along with backlink attribute ID (if needed) followed by the operator and values. The accepted operators are 'one_of', 'is_blank'.",
+       "example": {
+        "01GBSQF3FHF7FWZQNWGHAVQ804": {
+         "one_of": [
+          "01GBSQF3FHF7FWZQNWGHAVQ804",
+          "01ET65M7ZARSFZ6TFDFVQDN9AA"
+         ]
+        }
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on an incident custom field. Custom field ID should be sent, followed by the operator and values. Accepted operator will depend on the custom field type.",
+      "example": {
+       "01GBSQF3FHF7FWZQNWGHAVQ804": {
+        "one_of": [
+         "01GBSQF3FHF7FWZQNWGHAVQ804",
+         "01ET65M7ZARSFZ6TFDFVQDN9AA"
+        ]
+       }
+      },
+      "explode": true,
+      "in": "query",
+      "name": "custom_field",
+      "schema": {
+       "additionalProperties": {
+        "additionalProperties": {
+         "example": [
+          "value"
+         ],
+         "items": {
+          "example": "value",
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "example": {
+         "abc123": [
+          "value"
+         ]
+        },
+        "type": "object"
+       },
+       "description": "Filter on an incident custom field. Custom field ID should be sent, followed by the operator and values. Accepted operator will depend on the custom field type.",
+       "example": {
+        "01GBSQF3FHF7FWZQNWGHAVQ804": {
+         "one_of": [
+          "01GBSQF3FHF7FWZQNWGHAVQ804",
+          "01ET65M7ZARSFZ6TFDFVQDN9AA"
+         ]
+        }
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "Filter on incident mode. The accepted operator is 'one_of'.  If this is not provided, this value defaults to `{\"one_of\": [\"standard\", \"retrospective\"] }`, meaning that test and tutorial incidents are not included.",
+      "example": {
+       "one_of": [
+        "retrospective"
+       ]
+      },
+      "explode": true,
+      "in": "query",
+      "name": "mode",
+      "schema": {
+       "additionalProperties": {
+        "example": [
+         "some_value"
+        ],
+        "items": {
+         "example": "some_value",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "description": "Filter on incident mode. The accepted operator is 'one_of'.  If this is not provided, this value defaults to `{\"one_of\": [\"standard\", \"retrospective\"] }`, meaning that test and tutorial incidents are not included.",
+       "example": {
+        "one_of": [
+         "retrospective"
+        ]
+       },
+       "type": "object"
+      },
+      "style": "deepObject"
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "example": {
+         "incidents": [
+          {
+           "call_url": "https://zoom.us/foo",
+           "created_at": "2021-08-17T13:28:57.801578Z",
+           "creator": {
+            "alert": {
+             "id": "01GW2G3V0S59R238FAHPDS1R66",
+             "title": "*errors.withMessage: PG::Error failed to connect"
+            },
+            "api_key": {
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "My test API key"
+            },
+            "user": {
+             "email": "lisa@incident.io",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "Lisa Karlin Curtis",
+             "role": "owner",
+             "slack_user_id": "U02AYNF2XJM"
+            },
+            "workflow": {
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "My little workflow"
+            }
+           },
+           "custom_field_entries": [
+            {
+             "custom_field": {
+              "description": "Which team is impacted by this issue",
+              "field_type": "single_select",
+              "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+              "name": "Affected Team",
+              "options": [
+               {
+                "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+                "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+                "sort_key": 10,
+                "value": "Product"
+               }
+              ]
+             },
+             "values": [
+              {
+               "value_catalog_entry": {
+                "aliases": [
+                 "lawrence@incident.io",
+                 "lawrence"
+                ],
+                "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+                "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+                "name": "Primary On-call"
+               },
+               "value_link": "https://google.com/",
+               "value_numeric": "123.456",
+               "value_option": {
+                "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+                "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+                "sort_key": 10,
+                "value": "Product"
+               },
+               "value_text": "This is my text field, I hope you like it"
+              }
+             ]
+            }
+           ],
+           "debriefs": [
+            {
+             "end_at": "2021-08-17T14:28:57.801578Z",
+             "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+             "start_at": "2021-08-17T13:28:57.801578Z"
+            }
+           ],
+           "duration_metrics": [
+            {
+             "duration_metric": {
+              "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+              "name": "Lasted"
+             },
+             "status": "success",
+             "value_seconds": 10800
+            }
+           ],
+           "external_issue_reference": {
+            "issue_name": "INC-123",
+            "issue_permalink": "https://linear.app/incident-io/issue/INC-1609/find-copywriter-to-write-up",
+            "provider": "asana"
+           },
+           "has_debrief": false,
+           "id": "01FDAG4SAP5TYPT98WGR2N7W91",
+           "incident_role_assignments": [
+            {
+             "assignee": {
+              "email": "lisa@incident.io",
+              "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+              "name": "Lisa Karlin Curtis",
+              "role": "owner",
+              "slack_user_id": "U02AYNF2XJM"
+             },
+             "role": {
+              "created_at": "2021-08-17T13:28:57.801578Z",
+              "description": "The person currently coordinating the incident",
+              "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+              "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+              "name": "Incident Lead",
+              "required": false,
+              "role_type": "lead",
+              "shortform": "lead",
+              "updated_at": "2021-08-17T13:28:57.801578Z"
+             }
+            }
+           ],
+           "incident_status": {
+            "category": "triage",
+            "created_at": "2021-08-17T13:28:57.801578Z",
+            "description": "Impact has been **fully mitigated**, and we're ready to learn from this incident.",
+            "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+            "name": "Closed",
+            "rank": 4,
+            "updated_at": "2021-08-17T13:28:57.801578Z"
+           },
+           "incident_timestamp_values": [
+            {
+             "incident_timestamp": {
+              "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+              "name": "Impact started",
+              "rank": 1
+             },
+             "value": {
+              "value": "2021-08-17T13:28:57.801578Z"
+             }
+            }
+           ],
+           "incident_type": {
+            "create_in_triage": "always",
+            "created_at": "2021-08-17T13:28:57.801578Z",
+            "description": "Customer facing production outages",
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "is_default": false,
+            "name": "Production Outage",
+            "private_incidents_only": false,
+            "updated_at": "2021-08-17T13:28:57.801578Z"
+           },
+           "last_activity_at": "2021-08-17T13:28:57.801578Z",
+           "mode": "standard",
+           "ms_teams_channel_url": "https://teams.microsoft.com/l/channel/19%some-hex%40thread.tacv2/inc-123-title?groupId=some-uuid&tenantId=another-uuid",
+           "name": "Our database is sad",
+           "permalink": "https://app.incident.io/incidents/123",
+           "postmortem_document_ids": [
+            "01FCNDV6P870EA6S7TK1DSYD5H"
+           ],
+           "postmortem_document_url": "https://docs.google.com/my_doc_id",
+           "reference": "INC-123",
+           "severity": {
+            "created_at": "2021-08-17T13:28:57.801578Z",
+            "description": "Issues with **low impact**.",
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "name": "Minor",
+            "rank": 1,
+            "updated_at": "2021-08-17T13:28:57.801578Z"
+           },
+           "slack_channel_id": "C02AW36C1M5",
+           "slack_channel_name": "inc-165-green-parrot",
+           "slack_channel_url": "https://slack.com/app_redirect?team=T1234&channel=C5678",
+           "slack_team_id": "T02A1FSLE8J",
+           "summary": "Our database is really really sad, and we don't know why yet.",
+           "team_ids": [
+            "01JPQA75EPNEES4479P16P4XAB"
+           ],
+           "updated_at": "2021-08-17T13:28:57.801578Z",
+           "visibility": "public",
+           "workload_minutes_late": 40.7,
+           "workload_minutes_sleeping": 0,
+           "workload_minutes_total": 60.7,
+           "workload_minutes_working": 20
+          }
+         ],
+         "pagination_meta": {
+          "after": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "page_size": 25,
+          "total_record_count": 238
+         }
+        },
+        "schema": {
+         "$ref": "#/components/schemas/IncidentsListResultV2"
+        }
+       }
+      },
+      "description": "OK response."
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "invalid_request_error: There was a problem with the request, like a missing header or querying a resource that doesn't exist."
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "authentication_error: Authentication failed."
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "resource_forbidden: Access to this resource is forbidden for the authenticated user."
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_found: The referenced resource could not be found."
+     },
+     "405": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "method_not_allowed: The endpoint does not support this operation for the specified resource."
+     },
+     "406": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_acceptable: Requested a media type this endpoint does not support."
+     },
+     "408": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "request_timeout: The request took too long to process.\n\nclient_timeout: The request was cancelled by the client."
+     },
+     "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "conflict: Request conflicted with current state of the resource, likely a concurrent update."
+     },
+     "412": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "precondition_failed: A required condition hasn't been met."
+     },
+     "413": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "payload_too_large: The request payload is too large."
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "validation_error: A required field was not provided, or the provided data was invalid."
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "too_many_requests: Too many requests hit the API too quickly. We recommend an exponential backoff of your requests.\n\nrate_limit_reached: The rate limit associated with this resource or API key has been exceeded. Try again later."
+     },
+     "500": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "api_error: Something went wrong and has been reported internally."
+     }
+    },
+    "summary": "List",
+    "tags": [
+     "Incidents V2"
+    ],
+    "x-docs-display-name": "List",
+    "x-docs-group-name": "Incidents V2",
+    "x-docs-resource-type": "IncidentV2",
+    "x-mint": {
+     "content": "\ud83d\udd11 Requires the `incidents.view` scope."
+    },
+    "x-rbac-scopes": [
+     "incidents.view"
+    ]
+   },
+   "post": {
+    "description": "Create a new incident.\n\nNote that if the incident mode is set to \"retrospective\" then the new incident\nwill not be announced in Slack.\n",
+    "operationId": "Incidents V2_Create",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "example": {
+        "custom_field_entries": [
+         {
+          "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+          "values": [
+           {
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "value_catalog_entry_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "value_link": "https://google.com/",
+            "value_numeric": "123.456",
+            "value_option_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "value_text": "This is my text field, I hope you like it",
+            "value_timestamp": ""
+           }
+          ]
+         }
+        ],
+        "idempotency_key": "alert-uuid",
+        "incident_role_assignments": [
+         {
+          "assignee": {
+           "email": "bob@example.com",
+           "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+           "slack_user_id": "USER123"
+          },
+          "incident_role_id": "01FH5TZRWMNAFB0DZ23FD1TV96"
+         }
+        ],
+        "incident_status_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+        "incident_timestamp_values": [
+         {
+          "incident_timestamp_id": "01FCNDV6P870EA6S7TK1DSYD5H",
+          "value": "2021-08-17T13:28:57.801578Z"
+         }
+        ],
+        "incident_type_id": "01FH5TZRWMNAFB0DZ23FD1TV96",
+        "mode": "standard",
+        "name": "Our database is sad",
+        "retrospective_incident_options": {
+         "external_id": 123,
+         "postmortem_document_url": "https://docs.google.com/my_doc_id",
+         "slack_channel_id": "abc123"
+        },
+        "severity_id": "01FH5TZRWMNAFB0DZ23FD1TV96",
+        "slack_channel_name_override": "inc-123-database-down",
+        "slack_team_id": "T02A1FSLE8J",
+        "summary": "Our database is really really sad, and we don't know why yet.",
+        "visibility": "public"
+       },
+       "schema": {
+        "$ref": "#/components/schemas/IncidentsCreatePayloadV2"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "example": {
+         "incident": {
+          "call_url": "https://zoom.us/foo",
+          "created_at": "2021-08-17T13:28:57.801578Z",
+          "creator": {
+           "alert": {
+            "id": "01GW2G3V0S59R238FAHPDS1R66",
+            "title": "*errors.withMessage: PG::Error failed to connect"
+           },
+           "api_key": {
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "name": "My test API key"
+           },
+           "user": {
+            "email": "lisa@incident.io",
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "name": "Lisa Karlin Curtis",
+            "role": "owner",
+            "slack_user_id": "U02AYNF2XJM"
+           },
+           "workflow": {
+            "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+            "name": "My little workflow"
+           }
+          },
+          "custom_field_entries": [
+           {
+            "custom_field": {
+             "description": "Which team is impacted by this issue",
+             "field_type": "single_select",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "Affected Team",
+             "options": [
+              {
+               "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+               "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+               "sort_key": 10,
+               "value": "Product"
+              }
+             ]
+            },
+            "values": [
+             {
+              "value_catalog_entry": {
+               "aliases": [
+                "lawrence@incident.io",
+                "lawrence"
+               ],
+               "external_id": "761722cd-d1d7-477b-ac7e-90f9e079dc33",
+               "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+               "name": "Primary On-call"
+              },
+              "value_link": "https://google.com/",
+              "value_numeric": "123.456",
+              "value_option": {
+               "custom_field_id": "01FCNDV6P870EA6S7TK1DSYDG0",
+               "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+               "sort_key": 10,
+               "value": "Product"
+              },
+              "value_text": "This is my text field, I hope you like it"
+             }
+            ]
+           }
+          ],
+          "debriefs": [
+           {
+            "end_at": "2021-08-17T14:28:57.801578Z",
+            "id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "start_at": "2021-08-17T13:28:57.801578Z"
+           }
+          ],
+          "duration_metrics": [
+           {
+            "duration_metric": {
+             "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+             "name": "Lasted"
+            },
+            "status": "success",
+            "value_seconds": 10800
+           }
+          ],
+          "external_issue_reference": {
+           "issue_name": "INC-123",
+           "issue_permalink": "https://linear.app/incident-io/issue/INC-1609/find-copywriter-to-write-up",
+           "provider": "asana"
+          },
+          "has_debrief": false,
+          "id": "01FDAG4SAP5TYPT98WGR2N7W91",
+          "incident_role_assignments": [
+           {
+            "assignee": {
+             "email": "lisa@incident.io",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "Lisa Karlin Curtis",
+             "role": "owner",
+             "slack_user_id": "U02AYNF2XJM"
+            },
+            "role": {
+             "created_at": "2021-08-17T13:28:57.801578Z",
+             "description": "The person currently coordinating the incident",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "instructions": "Take point on the incident; Make sure people are clear on responsibilities",
+             "name": "Incident Lead",
+             "required": false,
+             "role_type": "lead",
+             "shortform": "lead",
+             "updated_at": "2021-08-17T13:28:57.801578Z"
+            }
+           }
+          ],
+          "incident_status": {
+           "category": "triage",
+           "created_at": "2021-08-17T13:28:57.801578Z",
+           "description": "Impact has been **fully mitigated**, and we're ready to learn from this incident.",
+           "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+           "name": "Closed",
+           "rank": 4,
+           "updated_at": "2021-08-17T13:28:57.801578Z"
+          },
+          "incident_timestamp_values": [
+           {
+            "incident_timestamp": {
+             "id": "01FCNDV6P870EA6S7TK1DSYD5H",
+             "name": "Impact started",
+             "rank": 1
+            },
+            "value": {
+             "value": "2021-08-17T13:28:57.801578Z"
+            }
+           }
+          ],
+          "incident_type": {
+           "create_in_triage": "always",
+           "created_at": "2021-08-17T13:28:57.801578Z",
+           "description": "Customer facing production outages",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "is_default": false,
+           "name": "Production Outage",
+           "private_incidents_only": false,
+           "updated_at": "2021-08-17T13:28:57.801578Z"
+          },
+          "last_activity_at": "2021-08-17T13:28:57.801578Z",
+          "mode": "standard",
+          "ms_teams_channel_url": "https://teams.microsoft.com/l/channel/19%some-hex%40thread.tacv2/inc-123-title?groupId=some-uuid&tenantId=another-uuid",
+          "name": "Our database is sad",
+          "permalink": "https://app.incident.io/incidents/123",
+          "postmortem_document_ids": [
+           "01FCNDV6P870EA6S7TK1DSYD5H"
+          ],
+          "postmortem_document_url": "https://docs.google.com/my_doc_id",
+          "reference": "INC-123",
+          "severity": {
+           "created_at": "2021-08-17T13:28:57.801578Z",
+           "description": "Issues with **low impact**.",
+           "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+           "name": "Minor",
+           "rank": 1,
+           "updated_at": "2021-08-17T13:28:57.801578Z"
+          },
+          "slack_channel_id": "C02AW36C1M5",
+          "slack_channel_name": "inc-165-green-parrot",
+          "slack_channel_url": "https://slack.com/app_redirect?team=T1234&channel=C5678",
+          "slack_team_id": "T02A1FSLE8J",
+          "summary": "Our database is really really sad, and we don't know why yet.",
+          "team_ids": [
+           "01JPQA75EPNEES4479P16P4XAB"
+          ],
+          "updated_at": "2021-08-17T13:28:57.801578Z",
+          "visibility": "public",
+          "workload_minutes_late": 40.7,
+          "workload_minutes_sleeping": 0,
+          "workload_minutes_total": 60.7,
+          "workload_minutes_working": 20
+         }
+        },
+        "schema": {
+         "$ref": "#/components/schemas/IncidentsCreateResultV2"
+        }
+       }
+      },
+      "description": "OK response."
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "invalid_request_error: There was a problem with the request, like a missing header or querying a resource that doesn't exist."
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "authentication_error: Authentication failed."
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "resource_forbidden: Access to this resource is forbidden for the authenticated user."
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_found: The referenced resource could not be found."
+     },
+     "405": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "method_not_allowed: The endpoint does not support this operation for the specified resource."
+     },
+     "406": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_acceptable: Requested a media type this endpoint does not support."
+     },
+     "408": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "request_timeout: The request took too long to process.\n\nclient_timeout: The request was cancelled by the client."
+     },
+     "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "conflict: Request conflicted with current state of the resource, likely a concurrent update."
+     },
+     "412": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "precondition_failed: A required condition hasn't been met."
+     },
+     "413": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "payload_too_large: The request payload is too large."
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "validation_error: A required field was not provided, or the provided data was invalid."
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "too_many_requests: Too many requests hit the API too quickly. We recommend an exponential backoff of your requests.\n\nrate_limit_reached: The rate limit associated with this resource or API key has been exceeded. Try again later."
+     },
+     "500": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "api_error: Something went wrong and has been reported internally."
+     }
+    },
+    "summary": "Create",
+    "tags": [
+     "Incidents V2"
+    ],
+    "x-docs-display-name": "Create",
+    "x-docs-group-name": "Incidents V2",
+    "x-docs-resource-type": "IncidentV2",
+    "x-mint": {
+     "content": "\ud83d\udd11 Requires the `incidents.create` scope."
+    },
+    "x-rbac-scopes": [
+     "incidents.create"
+    ]
+   }
+  },
+  "/v2/schedule_entries": {
+   "get": {
+    "description": "List the schedule entries for a schedule over a window of time.\n\nUse this endpoint to find out who is on-call for a schedule, either right now or\nat any point in the future. Common uses include:\n\n- Building a calendar or timeline view of who is on-call.\n- Looking up who was on-call at a particular moment (for example, when an\n  incident fired).\n- Exporting upcoming shifts into another system, such as a payroll or\n  scheduling tool.\n\nThe response groups entries into three lists: `scheduled` (the entries the\nrotation rules produce, before any overrides), `overrides` (any one-off\noverrides that apply in the window) and `final` (the effective schedule\nafter overrides have been merged in \u2014 this is normally the list you want).\n\nEach entry includes the `rotation_id` it belongs to.\nSchedules can be made up of multiple rotations (for example, a primary and\na secondary rotation) and each rotation can have several layers, and we\nreturn entries for every rotation and layer on the schedule.\n\nThe endpoint returns all entries that overlap with the given window. If no\nwindow is provided we default to a sensible range starting from now.\n\n## Pagination\n\nResponses are paginated. When more entries are available than fit on a single\npage, the response includes a `pagination_meta` block with two fields:\n\n- `after_url` \u2014 a fully-formed URL for the next page. The simplest way\n  to paginate is to keep following this URL until it is no longer present.\n- `after` \u2014 an opaque cursor token. To fetch the next page manually,\n  re-issue the request with `entry_window_start` set to this value and\n  `entry_window_end` left unchanged from the original request. Treat\n  the token as opaque \u2014 do not parse or modify it.\n\nKeep paginating until `pagination_meta` is absent from the response, at\nwhich point you have received every entry in the window.",
+    "operationId": "Schedules V2_ListScheduleEntries",
+    "parameters": [
+     {
+      "allowEmptyValue": true,
+      "description": "The ID of the schedule to get entries for.",
+      "example": "01FDAG4SAP5TYPT98WGR2N7W91",
+      "in": "query",
+      "name": "schedule_id",
+      "required": true,
+      "schema": {
+       "description": "The ID of the schedule to get entries for.",
+       "example": "01FDAG4SAP5TYPT98WGR2N7W91",
+       "type": "string"
+      }
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "The start of the window to get entries for. May also carry an opaque pagination cursor previously returned in `pagination_meta.after` \u2014 pass it back here unchanged to fetch the next page (leave `entry_window_end` unchanged from the original request).",
+      "example": "2021-01-01T00:00:00Z",
+      "in": "query",
+      "name": "entry_window_start",
+      "schema": {
+       "description": "The start of the window to get entries for. May also carry an opaque pagination cursor previously returned in `pagination_meta.after` \u2014 pass it back here unchanged to fetch the next page (leave `entry_window_end` unchanged from the original request).",
+       "example": "2021-01-01T00:00:00Z",
+       "type": "string"
+      }
+     },
+     {
+      "allowEmptyValue": true,
+      "description": "The end of the window to get entries for.",
+      "example": "2021-01-01T00:00:00Z",
+      "in": "query",
+      "name": "entry_window_end",
+      "schema": {
+       "description": "The end of the window to get entries for.",
+       "example": "2021-01-01T00:00:00Z",
+       "format": "date-time",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "example": {
+         "pagination_meta": {
+          "after": "abc123",
+          "after_url": "abc123"
+         },
+         "schedule_entries": {
+          "final": [
+           {
+            "end_at": "2021-08-17T13:28:57.801578Z",
+            "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "start_at": "2021-08-17T13:28:57.801578Z",
+            "user": {
+             "email": "lisa@incident.io",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "Lisa Karlin Curtis",
+             "role": "owner",
+             "slack_user_id": "U02AYNF2XJM"
+            }
+           }
+          ],
+          "overrides": [
+           {
+            "end_at": "2021-08-17T13:28:57.801578Z",
+            "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "start_at": "2021-08-17T13:28:57.801578Z",
+            "user": {
+             "email": "lisa@incident.io",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "Lisa Karlin Curtis",
+             "role": "owner",
+             "slack_user_id": "U02AYNF2XJM"
+            }
+           }
+          ],
+          "scheduled": [
+           {
+            "end_at": "2021-08-17T13:28:57.801578Z",
+            "entry_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "fingerprint": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "rotation_id": "01G0J1EXE7AXZ2C93K61WBPYEH",
+            "start_at": "2021-08-17T13:28:57.801578Z",
+            "user": {
+             "email": "lisa@incident.io",
+             "id": "01FCNDV6P870EA6S7TK1DSYDG0",
+             "name": "Lisa Karlin Curtis",
+             "role": "owner",
+             "slack_user_id": "U02AYNF2XJM"
+            }
+           }
+          ]
+         }
+        },
+        "schema": {
+         "$ref": "#/components/schemas/SchedulesListScheduleEntriesResultV2"
+        }
+       }
+      },
+      "description": "OK response."
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "invalid_request_error: There was a problem with the request, like a missing header or querying a resource that doesn't exist."
+     },
+     "401": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "authentication_error: Authentication failed."
+     },
+     "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "resource_forbidden: Access to this resource is forbidden for the authenticated user."
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_found: The referenced resource could not be found."
+     },
+     "405": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "method_not_allowed: The endpoint does not support this operation for the specified resource."
+     },
+     "406": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "not_acceptable: Requested a media type this endpoint does not support."
+     },
+     "408": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "request_timeout: The request took too long to process.\n\nclient_timeout: The request was cancelled by the client."
+     },
+     "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "conflict: Request conflicted with current state of the resource, likely a concurrent update."
+     },
+     "412": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "precondition_failed: A required condition hasn't been met."
+     },
+     "413": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "payload_too_large: The request payload is too large."
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "validation_error: A required field was not provided, or the provided data was invalid."
+     },
+     "429": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "too_many_requests: Too many requests hit the API too quickly. We recommend an exponential backoff of your requests.\n\nrate_limit_reached: The rate limit associated with this resource or API key has been exceeded. Try again later."
+     },
+     "500": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorResponse"
+        }
+       }
+      },
+      "description": "api_error: Something went wrong and has been reported internally."
+     }
+    },
+    "summary": "List",
+    "tags": [
+     "Schedule Entries V2"
+    ],
+    "x-display-name": "List",
+    "x-docs-display-name": "List",
+    "x-docs-group-name": "Schedule Entries V2",
+    "x-docs-resource-type": "ScheduleEntryV2",
+    "x-mint": {
+     "content": "\ud83d\udd11 Requires the `schedules.view` scope."
+    },
+    "x-rbac-scopes": [
+     "schedules.view"
+    ]
+   }
+  }
+ },
+ "x-fetched": "2026-10-04",
+ "x-source": [
+  "https://docs.incident.io/openapi/tags/incidents-v2.json",
+  "https://docs.incident.io/openapi/tags/alert-events-v2.json",
+  "https://docs.incident.io/openapi/tags/schedule-entries-v2.json",
+  "https://docs.incident.io/openapi/tags/severities-v1.json"
+ ]
+}

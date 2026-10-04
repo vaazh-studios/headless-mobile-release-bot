@@ -366,4 +366,27 @@ def test_mock_mode_halt_actions_stay_dry(tmp_path, monkeypatch):
     run = lambda *a: cli.main(["--config", str(cfg_path), *a])
     run("submit", "--aab", "x", "--version", "4.12.0")
     run("halt", "--reason", "test")
-    assert flipped == [True]                     # dry run
+    assert flipped == []                         # never called: simulated instead
+    state = json.loads((tmp_path / "s.json").read_text())
+    assert state["optimizely_flags"] == {"f1": False}
+    assert state["side_effects"][-1] == {"type": "flags_off", "flags": ["f1"]}
+
+
+def test_simulated_halt_records_every_configured_action():
+    cfg = {"notify": {"pagerduty": {}, "incident_io": {"alert_source_config_id": "01SRC",
+                                                         "declare_incident": {"severity": "Minor"}}},
+           "on_halt": {"optimizely": {"environment": "production", "flags": ["new_checkout"]}}}
+    state = {}
+    lines = notify.simulate_halt(cfg, automatic=True, state=state)
+    assert [e["type"] for e in state["side_effects"]] == ["pagerduty_page", "incident_io_alert", "incident", "flags_off"]
+    assert any("Declared INC-1 (Minor)" in l for l in lines) and all("simulated" in l for l in lines)
+    manual = notify.simulate_halt(cfg, automatic=False, state=state)
+    assert len(manual) == 1 and "new_checkout" in manual[0]          # humans halting: no paging, still the kill switch
+
+
+def test_pagerduty_with_default_settings_still_pages(monkeypatch):
+    paged = []
+    monkeypatch.setattr("release_bot.pagerduty.page", lambda *a, **k: paged.append(k.get("severity")))
+    notify.on_halt({"notify": {"pagerduty": {}}}, "s", "k", dry_run=False, automatic=True,
+                   env={"PAGERDUTY_ROUTING_KEY": "rk"})
+    assert paged == ["critical"]
