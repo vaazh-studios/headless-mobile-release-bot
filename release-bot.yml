@@ -73,8 +73,10 @@ defaults:
     hero_usergroup_id: ""
 
   access:
-    # GitHub login → Slack user ID. Only people in this list AND currently in
-    # @android-release-hero may submit or resume. Anyone can halt.
+    # Who's on duty: the Slack user group above, or an incident.io on-call schedule:
+    # on_duty: {incident_io_schedule_id: 01H...}
+    # GitHub login → Slack user ID (or incident.io email). Only people in this list AND
+    # currently on duty may submit or resume. Anyone can halt.
     release_heroes: {}
       # your-github-login: U0123456789
 

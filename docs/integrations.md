@@ -13,7 +13,7 @@ secrets in the right GitHub environment. `python -m release_bot doctor` checks t
 | [Sentry](#sentry) | health | both | `SENTRY_AUTH_TOKEN` |
 | [Generic HTTP/JSON](#generic-httpjson-checks) | health | both | `RELEASE_BOT_HTTP_ENV` |
 | [PagerDuty](#pagerduty) | health + paging | both | `PAGERDUTY_API_TOKEN`, `PAGERDUTY_ROUTING_KEY` |
-| [incident.io](#incidentio) | alerting on halt (optional: incident gate) | both | `INCIDENT_IO_ALERT_TOKEN` (gate: `INCIDENT_IO_API_KEY`) |
+| [incident.io](#incidentio) | alert or declare an incident on halt; release hero from on-call; optional incident gate | both | `INCIDENT_IO_ALERT_TOKEN`, `INCIDENT_IO_API_KEY` |
 | [Amplitude](#amplitude) | health (business) | both | `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY` |
 | [Microsoft Teams](#microsoft-teams) | notification | — | `TEAMS_WEBHOOK_URL` |
 | [Optimizely kill switch](#optimizely-kill-switch) | action on halt | — | `OPTIMIZELY_TOKEN` |
@@ -147,6 +147,38 @@ notify:
 ```
 
 Secret: `INCIDENT_IO_ALERT_TOKEN` (the HTTP alert source's token).
+
+**Release hero from an on-call schedule.** Instead of a Slack user group (which needs a paid
+Slack plan), keep the weekly release hero rotation in incident.io. Whoever is on call **right
+now** (after overrides) may submit and resume, and gets the `@mention` on halts.
+
+```yaml
+access:
+  on_duty:
+    incident_io_schedule_id: 01HSCHEDULE...      # On-call → Schedules → the schedule's ID
+  release_heroes:                                # GitHub login → their incident.io email (or Slack user ID)
+    alice-gh: alice@vaazh.com
+    bob-gh: bob@vaazh.com
+```
+
+Hand-over is just the schedule: swap shifts or add an override in incident.io and the permission
+moves with it. Needs `INCIDENT_IO_API_KEY` with access to schedules. Doctor shows who's on call.
+
+**Declare an incident on halt.** On top of (or instead of) an alert, the bot can open an incident
+when it halts by itself, so the halt gets a channel, roles and a timeline. A re-checked halt never
+opens a second incident (the request is idempotent per release).
+
+```yaml
+notify:
+  incident_io:
+    declare_incident:
+      severity: Minor             # a severity name from your incident.io settings
+      mode: test                  # start with test incidents; switch to standard when you trust it
+      visibility: public
+      # incident_type_id: 01H...  # optional
+```
+
+Needs `INCIDENT_IO_API_KEY` with permission to create incidents.
 
 **Optional: open incidents as a gate.** Off unless you add it. Useful if you'd rather not step a
 rollout up while a big incident is open, even an unrelated one.
