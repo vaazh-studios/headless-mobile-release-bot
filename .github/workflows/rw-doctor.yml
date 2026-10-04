@@ -8,6 +8,10 @@ name: "Release bot · Doctor"
 on:
   workflow_call:
     inputs:
+      platform:
+        description: "android or ios"
+        type: string
+        default: android
       app:
         description: "App id from release-bot.yml (empty if only one app is configured)"
         type: string
@@ -24,7 +28,6 @@ on:
         description: "Bot version to run (use the same ref as in `uses:`)"
         type: string
         default: main
-
     # Declared so callers in another org/account can pass them (secrets: inherit only
     # works within one organization). Environment secrets are read directly.
     secrets:
@@ -33,6 +36,12 @@ on:
       GRAFANA_TOKEN:
         required: false
       RELEASE_BOT_REPO_TOKEN:
+        required: false
+      ASC_KEY_ID:
+        required: false
+      ASC_ISSUER_ID:
+        required: false
+      ASC_PRIVATE_KEY:
         required: false
 
 env:
@@ -72,7 +81,7 @@ jobs:
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
 
   run:
-    name: ${{ matrix.app }}
+    name: ${{ matrix.app }} · ${{ matrix.platform }}
     needs: plan
     strategy:
       fail-fast: false
@@ -82,7 +91,7 @@ jobs:
     environment: ${{ matrix.environment }}
     # One queue per app: a slow or halted app never blocks the others.
     concurrency:
-      group: android-release-${{ matrix.app }}
+      group: android-release-${{ matrix.state }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
@@ -93,12 +102,17 @@ jobs:
           path: .release-bot
       - uses: ./.release-bot/.github/actions/release-bot-setup
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          workload_identity_provider: ${{ matrix.platform == 'android' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER || '' }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - env:
           APP: ${{ matrix.app }}
+          PLATFORM: ${{ matrix.platform }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           GRAFANA_URL: ${{ vars.GRAFANA_URL }}
           GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
           GH_TOKEN: ${{ secrets.RELEASE_BOT_REPO_TOKEN || github.token }}
-        run: python -m release_bot --app "$APP" doctor
+        run: python -m release_bot --app "$APP" --platform "$PLATFORM" doctor

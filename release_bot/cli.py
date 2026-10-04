@@ -42,6 +42,7 @@ class Deps:
     vitals: object = None
     crashlytics: object = None
     grafana: object = None
+    appstore: object = None              # iOS: App Store Connect client
     store: object = None                 # mock mode: state to persist after the command
     on_duty_logins: set | None = None    # mock mode: stand-in for @android-release-hero
 
@@ -66,8 +67,15 @@ def _slack_for(cfg: dict, dry_run: bool):
 
 def build_mock_deps(cfg: dict, dry_run: bool) -> Deps:
     from release_bot import mock
-    store = mock.MockStore(app_id=cfg.get("app_id", "app"))
+    ios = cfg.get("platform") == "ios"
+    store = mock.MockStore(app_id=cfg.get("app_id", "app") + ("-ios" if ios else ""))
     cfg = {**cfg, "_mock": True}
+    if ios:
+        appstore = mock.MockAppStore(store, dry_run or shadow_mode(cfg))
+        return Deps(cfg=cfg, play=None, slack=_slack_for(cfg, dry_run),
+                    crashlytics=mock.MockCrashlytics(store, is_live=appstore.is_live),
+                    grafana=mock.MockGrafana(store), appstore=appstore, store=store,
+                    on_duty_logins=mock.on_duty_logins())
     return Deps(
         cfg=cfg,
         play=mock.MockPlay(store, dry_run or shadow_mode(cfg)),
@@ -84,6 +92,8 @@ def build_mock_deps(cfg: dict, dry_run: bool) -> Deps:
 def build_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
     if mock_mode():
         return build_mock_deps(cfg, dry_run)
+    if cfg.get("platform") == "ios":
+        return _build_ios_deps(cfg, dry_run, health)
     p = cfg["play"]
     deps = Deps(
         cfg=cfg,
@@ -110,7 +120,27 @@ def build_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
     return deps
 
 
-def collect_health(deps: Deps, live_code: int, prev_code: int | None) -> Verdict:
+def _build_ios_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
+    from release_bot.appstore import AppStore
+    deps = Deps(cfg=cfg, play=None, slack=_slack_for(cfg, dry_run),
+                appstore=AppStore(cfg["bundle_id"], dry_run or shadow_mode(cfg)))
+    if not health:
+        return deps
+    norm = rules.normalize(cfg.get("health"))
+    sources = norm["sources"]
+    if "crashlytics" in sources:
+        from release_bot.crashlytics import Crashlytics
+        src = dict(sources["crashlytics"])
+        src["table"] = src.get("ios_table") or cfg["bundle_id"].replace(".", "_") + "_IOS_REALTIME"
+        deps.crashlytics = Crashlytics({"new_issue_min_users": rules.crashlytics_query_min_users(norm), **src})
+    if "grafana" in sources:
+        from release_bot.grafana import Grafana
+        deps.grafana = Grafana(os.environ["GRAFANA_URL"], os.environ["GRAFANA_TOKEN"],
+                               sources["grafana"].get("matchers", []))
+    return deps
+
+
+def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios_version: str | None = None) -> Verdict:
     """Query each configured source, then apply the health rules. A source that
     errors counts as HOLD: we can't prove the release is healthy, but an outage
     elsewhere shouldn't halt it."""
@@ -118,6 +148,8 @@ def collect_health(deps: Deps, live_code: int, prev_code: int | None) -> Verdict
     wanted = set(norm["sources"])
     if deps.store is not None:
         wanted = set(rules.SOURCES)  # mock mode: the demo exercises every source
+    if ios_version is not None:
+        wanted.discard("play_vitals")  # Play only; Apple's API has no crash rate
     signals: dict = {}
 
     def fetch(source: str, fn):
@@ -132,7 +164,10 @@ def collect_health(deps: Deps, live_code: int, prev_code: int | None) -> Verdict
             return {"new": by_version.get(live_code), "prev": by_version.get(prev_code)}
         fetch("play_vitals", vitals)
     if deps.crashlytics and "crashlytics" in wanted:
-        fetch("crashlytics", lambda: {"new_issues": deps.crashlytics.new_fatal_issues(live_code)})
+        if ios_version is not None:
+            fetch("crashlytics", lambda: {"new_issues": deps.crashlytics.new_fatal_issues(display_version=ios_version)})
+        else:
+            fetch("crashlytics", lambda: {"new_issues": deps.crashlytics.new_fatal_issues(live_code)})
     if deps.grafana and "grafana" in wanted:
         fetch("grafana", lambda: {"alerts": deps.grafana.active_alerts()})
     return Verdict(rules.evaluate(norm, signals))
@@ -151,7 +186,8 @@ def _name(deps: Deps) -> str:
 def _key(deps: Deps, version: str) -> str:
     """Slack thread key: the version, prefixed by the app id in multi-app setups."""
     app_id = deps.cfg.get("app_id", config_mod.LEGACY_APP_ID)
-    return version if app_id == config_mod.LEGACY_APP_ID else f"{app_id} {version}"
+    ios = "ios " if deps.cfg.get("platform") == "ios" else ""
+    return f"{ios}{version}" if app_id == config_mod.LEGACY_APP_ID else f"{app_id} {ios}{version}"
 
 
 def _links(deps: Deps) -> str:
@@ -207,6 +243,9 @@ def cmd_status(deps: Deps, args) -> int:
 
 
 def cmd_precheck_submit(deps: Deps, args) -> int:
+    if deps.cfg.get("platform") == "ios":
+        from release_bot import ios_cmds
+        return ios_cmds.precheck(deps, args)
     state, live = _live_or_none(deps)
     if live and live["status"] == "inProgress":
         pct = live.get("userFraction", 0) * 100
@@ -236,6 +275,9 @@ def plan_text(cfg: dict) -> str:
 
 
 def cmd_submit(deps: Deps, args) -> int:
+    if deps.cfg.get("platform") == "ios":
+        from release_bot import ios_cmds
+        return ios_cmds.submit(deps, args)
     p = deps.cfg["play"]
     notes = (args.notes or "").strip() or p["default_release_notes"]
     fraction = rollout_policy(deps.cfg).android.initial
@@ -253,6 +295,9 @@ def cmd_submit(deps: Deps, args) -> int:
 
 
 def cmd_check(deps: Deps, args) -> int:
+    if deps.cfg.get("platform") == "ios":
+        from release_bot import ios_cmds
+        return ios_cmds.check(deps, args)
     state, live = _live_or_none(deps)
     if not live or live["status"] != "inProgress":
         print("No in-progress rollout; nothing to check.")
@@ -289,6 +334,8 @@ def cmd_check(deps: Deps, args) -> int:
 def _submitted_at(deps: Deps, version: str, code: int | None) -> datetime | None:
     """When this release was submitted, for 'day N' schedules. Stateless: mock
     history, or the GitHub release the submit workflow created for the tag."""
+    if deps.appstore is not None and hasattr(deps.appstore, "submitted_at"):
+        return deps.appstore.submitted_at()
     if deps.store is not None:
         return deps.store.submitted_at(code)
     tag = f"{deps.cfg.get('tag_prefix', '')}v{version}"
@@ -306,6 +353,9 @@ def _submitted_at(deps: Deps, version: str, code: int | None) -> datetime | None
 
 
 def cmd_advance(deps: Deps, args) -> int:
+    if deps.cfg.get("platform") == "ios":
+        from release_bot import ios_cmds
+        return ios_cmds.advance(deps, args)
     cfg = deps.cfg
     state, live = _live_or_none(deps)
     if not live:
@@ -354,6 +404,9 @@ def cmd_advance(deps: Deps, args) -> int:
 
 
 def cmd_halt(deps: Deps, args) -> int:
+    if deps.cfg.get("platform") == "ios":
+        from release_bot import ios_cmds
+        return ios_cmds.halt(deps, args)
     release = deps.play.halt()
     who = os.environ.get("GITHUB_ACTOR", "someone")
     version = release.get("name", "?")
@@ -364,6 +417,9 @@ def cmd_halt(deps: Deps, args) -> int:
 
 
 def cmd_resume(deps: Deps, args) -> int:
+    if deps.cfg.get("platform") == "ios":
+        from release_bot import ios_cmds
+        return ios_cmds.resume(deps, args)
     release = deps.play.resume()
     who = os.environ.get("GITHUB_ACTOR", "someone")
     deps.slack.post(_key(deps, release.get("name", "?")),
@@ -409,7 +465,11 @@ def cmd_mock_inject(deps: Deps, args) -> int:
         print("::error::mock-inject only works with RELEASE_BOT_MOCK=true")
         return 1
     deps.store.data["incident"] = args.incident
-    live = deps.play.track_state().live
+    if deps.appstore is not None:
+        rel = deps.appstore.current()
+        live = {"name": rel.version} if rel else None
+    else:
+        live = deps.play.track_state().live
     print(f"Mock incident set to '{args.incident}': {json.dumps(mock.INCIDENTS[args.incident])}")
     if live:
         who = os.environ.get("GITHUB_ACTOR", "someone")
@@ -434,6 +494,8 @@ def cmd_app_info(deps: Deps, args) -> int:
         return 1
     out = {
         "app": cfg["app_id"],
+        "platform": cfg["platform"],
+        "state": cfg["app_id"] + ("-ios" if cfg["platform"] == "ios" else ""),
         "name": cfg["display_name"],
         "environment": cfg["environment"],
         "signing_environment": cfg["signing_environment"],
@@ -474,6 +536,8 @@ def parse_args(argv):
     ap.add_argument("--config", default=os.environ.get("RELEASE_BOT_CONFIG") or str(config_mod.DEFAULT_PATH))
     ap.add_argument("--dry-run", action="store_true", help="read everything, change nothing on Play")
     ap.add_argument("--app", default=None, help="app id from release-bot.yml (needed when several apps are configured)")
+    ap.add_argument("--platform", default=os.environ.get("RELEASE_BOT_PLATFORM") or "android",
+                    choices=list(config_mod.PLATFORMS))
     sub = ap.add_subparsers(dest="command", required=True)
     sub.add_parser("status")
     sub.add_parser("precheck-submit").add_argument("--force", action="store_true")
@@ -579,11 +643,13 @@ def cmd_doctor(raw: dict, app: str | None, factory=None) -> int:
 
 
 def cmd_apps(raw: dict) -> int:
-    """JSON matrix of every app: [{"app", "environment", "account"}]."""
+    """JSON matrix of every app and platform: [{"app", "platform", "environment", "account", "state"}]."""
     rows = []
     for app_id in config_mod.app_ids(raw):
-        cfg = config_mod.resolve(raw, app_id)
-        rows.append({"app": app_id, "environment": cfg["environment"], "account": cfg["account"]})
+        for platform in config_mod.resolve(raw, app_id).get("platforms", ["android"]):
+            cfg = config_mod.resolve(raw, app_id, platform)
+            rows.append({"app": app_id, "platform": platform, "environment": cfg["environment"],
+                         "account": cfg["account"], "state": app_id + ("-ios" if platform == "ios" else "")})
     print(json.dumps(rows))
     return 0
 
@@ -599,7 +665,7 @@ def main(argv=None, deps: Deps | None = None) -> int:
         if args.command in ("plan", "validate"):
             return (cmd_plan if args.command == "plan" else cmd_validate)(raw, args.app)
         try:
-            cfg = config_mod.resolve(raw, args.app)
+            cfg = config_mod.resolve(raw, args.app, args.platform)
         except config_mod.ConfigError as e:
             print(f"::error::{e}")
             return 2

@@ -4,11 +4,15 @@
 #       uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-submit.yml@main
 #       with: {app: ${{ inputs.app }}, tag: ${{ inputs.tag }}}
 #       secrets: { SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} }   # see examples/caller-workflows
-name: "Release bot · Submit to Play"
+name: "Release bot · Submit to the store"
 
 on:
   workflow_call:
     inputs:
+      platform:
+        description: "android (build .aab, upload to Play) or ios (submit the TestFlight build for review)"
+        type: string
+        default: android
       app:
         description: "App id from release-bot.yml (empty if only one app is configured)"
         type: string
@@ -55,6 +59,12 @@ on:
         required: false
       ANDROID_UPLOAD_KEY_PASSWORD:
         required: false
+      ASC_KEY_ID:
+        required: false
+      ASC_ISSUER_ID:
+        required: false
+      ASC_PRIVATE_KEY:
+        required: false
 
 env:
   PYTHONPATH: ${{ github.workspace }}/.release-bot
@@ -74,6 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app: ${{ steps.app.outputs.app }}
+      state: ${{ steps.app.outputs.state }}
       environment: ${{ steps.app.outputs.environment }}
       signing_environment: ${{ steps.app.outputs.signing_environment }}
       repository: ${{ steps.app.outputs.repository }}
@@ -99,6 +110,7 @@ jobs:
         uses: ./.release-bot/.github/actions/resolve-app
         with:
           app: ${{ inputs.app }}
+          platform: ${{ inputs.platform }}
           tag: ${{ inputs.tag }}
 
   preflight:
@@ -118,26 +130,32 @@ jobs:
           path: .release-bot
       - uses: ./.release-bot/.github/actions/release-bot-setup
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          workload_identity_provider: ${{ inputs.platform == 'android' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER || '' }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - if: env.RELEASE_BOT_MOCK == 'true'
         uses: ./.release-bot/.github/actions/mock-state
         with:
           mode: restore
-          app: ${{ needs.resolve.outputs.app }}
+          app: ${{ needs.resolve.outputs.state }}
       - name: Only the on-duty @android-release-hero may submit
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           APP: ${{ needs.resolve.outputs.app }}
-        run: python -m release_bot --app "$APP" authorize --actor "$GITHUB_ACTOR"
+          PLATFORM: ${{ inputs.platform }}
+        run: python -m release_bot --app "$APP" --platform "$PLATFORM" authorize --actor "$GITHUB_ACTOR"
       - name: Previous rollout finished?
         env:
           APP: ${{ needs.resolve.outputs.app }}
+          PLATFORM: ${{ inputs.platform }}
           FORCE: ${{ inputs.supersede_unfinished_rollout && '--force' || '' }}
-        run: python -m release_bot --app "$APP" precheck-submit $FORCE
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: python -m release_bot --app "$APP" --platform "$PLATFORM" precheck-submit $FORCE
 
   build:
     name: Build signed .aab from tag
+    if: inputs.platform == 'android'
     needs: [resolve, preflight]
     runs-on: ubuntu-latest
     # Only the upload key lives here: this job never sees Play credentials.
@@ -234,6 +252,7 @@ jobs:
 
   publish:
     name: Upload to Play at initial rollout
+    if: inputs.platform == 'android'
     needs: [resolve, build, release-notes]
     runs-on: ubuntu-latest
     environment: ${{ needs.resolve.outputs.environment }}
@@ -249,13 +268,13 @@ jobs:
           path: .release-bot
       - uses: ./.release-bot/.github/actions/release-bot-setup
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          workload_identity_provider: ${{ inputs.platform == 'android' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER || '' }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - if: env.RELEASE_BOT_MOCK == 'true'
         uses: ./.release-bot/.github/actions/mock-state
         with:
           mode: restore
-          app: ${{ needs.resolve.outputs.app }}
+          app: ${{ needs.resolve.outputs.state }}
       - uses: actions/download-artifact@v8
         with:
           name: aab
@@ -283,4 +302,42 @@ jobs:
         uses: ./.release-bot/.github/actions/mock-state
         with:
           mode: save
-          app: ${{ needs.resolve.outputs.app }}
+          app: ${{ needs.resolve.outputs.state }}
+
+  publish-ios:
+    name: Submit TestFlight build for App Store review
+    if: inputs.platform == 'ios'
+    needs: [resolve, release-notes]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.bot_repository }}
+          ref: ${{ inputs.bot_ref }}
+          path: .release-bot
+      - uses: ./.release-bot/.github/actions/release-bot-setup
+      - if: env.RELEASE_BOT_MOCK == 'true'
+        uses: ./.release-bot/.github/actions/mock-state
+        with:
+          mode: restore
+          app: ${{ needs.resolve.outputs.state }}
+      - name: Submit for review (phased release, manual release)
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          APP: ${{ needs.resolve.outputs.app }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          WHATS_NEW: ${{ inputs.whats_new }}
+          RELEASE_URL: ${{ needs.release-notes.outputs.url }}
+        run: |
+          python -m release_bot --app "$APP" --platform ios submit \
+            --aab - --version "$VERSION" --notes "$WHATS_NEW" --release-url "$RELEASE_URL"
+      - if: always() && env.RELEASE_BOT_MOCK == 'true'
+        uses: ./.release-bot/.github/actions/mock-state
+        with:
+          mode: save
+          app: ${{ needs.resolve.outputs.state }}

@@ -75,7 +75,30 @@ def _merge(base: dict, override: dict) -> dict:
     return out
 
 
-def resolve(raw: dict, app_id: str | None = None) -> dict:
+PLATFORMS = ("android", "ios")
+
+
+def resolve(raw: dict, app_id: str | None = None, platform: str = "android") -> dict:
+    """Flat config for one app on one platform. iOS adds bundle_id and uses the
+    account's `ios_environment` (default appstore-<account>)."""
+    if platform not in PLATFORMS:
+        raise ConfigError(f"platform must be android or ios, got '{platform}'")
+    cfg = _resolve_android(raw, app_id)
+    cfg["platform"] = platform
+    if platform == "android":
+        return cfg
+    if "ios" not in cfg.get("platforms", ["android"]):
+        raise ConfigError(f"app '{cfg['app_id']}' doesn't list ios under platforms:")
+    app = (raw.get("apps", {}) or {}).get(cfg["app_id"], {}) or {}
+    account = (raw.get("accounts", {}) or {}).get(cfg["account"], {}) or {}
+    cfg["environment"] = (app.get("ios_environment") or account.get("ios_environment")
+                          or ("appstore-production" if cfg["app_id"] == LEGACY_APP_ID else f"appstore-{cfg['account']}"))
+    cfg["bundle_id"] = cfg.get("bundle_id") or cfg["package_name"]
+    cfg["display_name"] = cfg["display_name"].removesuffix("Android").rstrip() + " iOS" if cfg["display_name"] != "Android" else "iOS"
+    return cfg
+
+
+def _resolve_android(raw: dict, app_id: str | None = None) -> dict:
     """Flat config for one app: package_name, play, rollout, health, slack, access,
     plus app_id, display_name, account, environment, signing_environment,
     repository, tag_prefix, tag_pattern and build."""
@@ -105,7 +128,7 @@ def resolve(raw: dict, app_id: str | None = None) -> dict:
         raise ConfigError(f"app '{app_id}' uses account '{account_id}', which isn't under accounts:")
     account = accounts[account_id] or {}
 
-    reserved = {"account", "name"}
+    reserved = {"account", "name", "ios_environment"}
     cfg = _merge(raw.get("defaults", {}), {k: v for k, v in app.items() if k not in reserved})
     if not cfg.get("package_name"):
         raise ConfigError(f"app '{app_id}' has no package_name")

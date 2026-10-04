@@ -3,3 +3,4 @@ google-auth>=2.35
 google-cloud-bigquery>=3.27
 requests>=2.32
 PyYAML>=6.0
+PyJWT[crypto]>=2.9

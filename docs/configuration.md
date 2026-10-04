@@ -39,7 +39,7 @@ Mon–Wed; a `day N` schedule usually wants a daily cron (`0 7 * * *`).
 
 ### Android vs iOS
 
-| | Android (Play) | iOS (App Store), coming soon |
+| | Android (Play) | iOS (App Store), beta: see [ios.md](ios.md) |
 |---|---|---|
 | Percentages | Any | Apple's phased release only: day 1 **1%**, day 2 **2%**, day 3 **5%**, day 4 **10%**, day 5 **20%**, day 6 **50%**, day 7 **100%** |
 | What the bot does | Sets each step | Starts the phased release, **pauses** it if unhealthy, **releases to everyone** at a 100% step |

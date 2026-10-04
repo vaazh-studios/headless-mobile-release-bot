@@ -12,14 +12,14 @@ WITH this_build AS (
   SELECT issue_id, ANY_VALUE(issue_title) AS title, COUNT(DISTINCT installation_uuid) AS users
   FROM `{table}`
   WHERE is_fatal
-    AND application.build_version = @build
+    AND application.{field} = @build
     AND event_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
   GROUP BY issue_id
 ),
 seen_elsewhere AS (
   SELECT DISTINCT issue_id
   FROM `{table}`
-  WHERE application.build_version != @build
+  WHERE application.{field} != @build
     AND event_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
 )
 SELECT t.issue_id, t.title, t.users
@@ -44,9 +44,12 @@ class Crashlytics:
             self._client = bigquery.Client(project=self._project)
         return self._client
 
-    def new_fatal_issues(self, version_code: int) -> list[dict]:
+    def new_fatal_issues(self, version_code: int | None = None, display_version: str | None = None) -> list[dict]:
+        """Android: match on versionCode (build_version). iOS: on the version string (display_version)."""
+        field = "display_version" if display_version else "build_version"
+        version_code = display_version or version_code
         job = self.client.query(
-            NEW_FATAL_ISSUES.format(table=self.table),
+            NEW_FATAL_ISSUES.format(table=self.table, field=field),
             job_config=bigquery.QueryJobConfig(query_parameters=[
                 bigquery.ScalarQueryParameter("build", "STRING", str(version_code)),
                 bigquery.ScalarQueryParameter("days", "INT64", self.days),

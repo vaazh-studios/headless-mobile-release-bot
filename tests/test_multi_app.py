@@ -69,11 +69,11 @@ def test_legacy_single_app_config_still_resolves():
 def test_apps_command_emits_matrix(capsys):
     assert cli.main(["--config", str(MULTI), "apps"]) == 0
     rows = json.loads(capsys.readouterr().out)
-    assert rows == [
-        {"app": "shop", "environment": "play-vaazh", "account": "vaazh"},
-        {"app": "chat", "environment": "play-vaazh", "account": "vaazh"},
-        {"app": "fitness", "environment": "play-vaazh", "account": "vaazh"},
-        {"app": "partner-app", "environment": "play-partner", "account": "partner"},
+    assert [(r["app"], r["platform"], r["environment"], r["state"]) for r in rows] == [
+        ("shop", "android", "play-vaazh", "shop"),
+        ("chat", "android", "play-vaazh", "chat"),
+        ("fitness", "android", "play-vaazh", "fitness"),
+        ("partner-app", "android", "play-partner", "partner-app"),
     ]
 
 

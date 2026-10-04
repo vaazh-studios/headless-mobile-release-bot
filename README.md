@@ -61,6 +61,8 @@ Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 | [Configuration](docs/configuration.md) | Rollout schedules (aligned/separate, weekdays or day N) and health rules (halt/hold/notify), per team |
 | [Setup](docs/setup.md) | One-time production setup |
 | [Multiple apps & accounts](docs/multi-app.md) | Several apps across several Play developer accounts from one repo |
+| [iOS](docs/ios.md) | App Store phased releases with the same schedule and rules (beta) |
+| [Use from your repo](examples/caller-workflows) | Short caller workflows for the reusable `rw-*.yml` workflows |
 | [Simulator](docs/simulator.md) | Replaying release weeks with mock data, writing scenarios |
 | [Security](SECURITY.md) | Credentials, permissions, who can release |
 | [Contributing](CONTRIBUTING.md) | Dev setup, adding a health source |
@@ -76,12 +78,12 @@ the Play jobs never see. Nothing listens for inbound traffic. Details: [SECURITY
 ## Roadmap
 
 - [ ] Run against real Play releases (v0.1)
-- [ ] `doctor` command: verifies every permission and connection with fix-it messages
-- [ ] Shadow mode: decide and post "would have…" without touching Play
-- [ ] Halt/Resume links in Slack messages and a GitHub job summary
-- [ ] Reusable workflows (`uses: vaazh-studios/headless-mobile-release-bot/...@v1`)
+- [x] `doctor` command: verifies every permission and connection with fix-it messages
+- [x] Shadow mode: decide and post "would have…" without touching the store
+- [x] Halt/Resume links in Slack messages and a GitHub job summary
+- [x] Reusable workflows (`uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-*.yml@main`)
 - [x] Multiple apps and multiple Play developer accounts from one repo
-- [ ] iOS: App Store phased release (pause/resume) with the same health gate
+- [x] iOS (beta): App Store phased release, started on schedule, paused by halt rules — [docs/ios.md](docs/ios.md)
 - [ ] More health sources: Sentry, Datadog, Bugsnag
 
 ## License

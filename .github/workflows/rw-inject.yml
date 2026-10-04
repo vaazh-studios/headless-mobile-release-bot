@@ -8,6 +8,10 @@ name: "Release bot · Sandbox incident"
 on:
   workflow_call:
     inputs:
+      platform:
+        description: "android or ios"
+        type: string
+        default: android
       app:
         description: "App id from release-bot.yml (empty if only one app is configured)"
         type: string
@@ -28,7 +32,6 @@ on:
         description: "new-crash | anr-regression | anr-over-threshold | grafana-critical | grafana-warning | none"
         type: string
         required: true
-
     # Declared so callers in another org/account can pass them (secrets: inherit only
     # works within one organization). Environment secrets are read directly.
     secrets:
@@ -37,6 +40,12 @@ on:
       GRAFANA_TOKEN:
         required: false
       RELEASE_BOT_REPO_TOKEN:
+        required: false
+      ASC_KEY_ID:
+        required: false
+      ASC_ISSUER_ID:
+        required: false
+      ASC_PRIVATE_KEY:
         required: false
 
 env:
@@ -58,6 +67,7 @@ jobs:
     outputs:
       app: ${{ steps.app.outputs.app }}
       environment: ${{ steps.app.outputs.environment }}
+      state: ${{ steps.app.outputs.state }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
@@ -70,6 +80,7 @@ jobs:
         uses: ./.release-bot/.github/actions/resolve-app
         with:
           app: ${{ inputs.app }}
+          platform: ${{ inputs.platform }}
 
   act:
     name: ${{ needs.resolve.outputs.app }}
@@ -89,21 +100,29 @@ jobs:
         uses: ./.release-bot/.github/actions/mock-state
         with:
           mode: restore
-          app: ${{ needs.resolve.outputs.app }}
+          app: ${{ needs.resolve.outputs.state }}
       - name: Inject
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           APP: ${{ needs.resolve.outputs.app }}
+          PLATFORM: ${{ inputs.platform }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           INCIDENT: ${{ inputs.incident }}
-        run: python -m release_bot --app "$APP" mock-inject --incident "$INCIDENT"
+        run: python -m release_bot --app "$APP" --platform "$PLATFORM" mock-inject --incident "$INCIDENT"
       - name: Health check now
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           APP: ${{ needs.resolve.outputs.app }}
+          PLATFORM: ${{ inputs.platform }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           INCIDENT: ${{ inputs.incident }}
-        run: python -m release_bot --app "$APP" check --trigger "sandbox incident $INCIDENT"
+        run: python -m release_bot --app "$APP" --platform "$PLATFORM" check --trigger "sandbox incident $INCIDENT"
       - if: always() && env.RELEASE_BOT_MOCK == 'true'
         uses: ./.release-bot/.github/actions/mock-state
         with:
           mode: save
-          app: ${{ needs.resolve.outputs.app }}
+          app: ${{ needs.resolve.outputs.state }}

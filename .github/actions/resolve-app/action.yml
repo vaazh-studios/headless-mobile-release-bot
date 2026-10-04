@@ -5,12 +5,18 @@ inputs:
     description: App id (leave empty for a single-app release-bot.yml)
     required: false
     default: ""
+  platform:
+    description: android or ios
+    required: false
+    default: android
   tag:
     description: Release tag to validate against the app's tag format
     required: false
     default: ""
 outputs:
   app: {description: App id, value: "${{ steps.info.outputs.app }}"}
+  platform: {description: android or ios, value: "${{ steps.info.outputs.platform }}"}
+  state: {description: Mock-state key (app, or app-ios), value: "${{ steps.info.outputs.state }}"}
   name: {description: Display name, value: "${{ steps.info.outputs.name }}"}
   environment: {description: GitHub environment of the app's Play account, value: "${{ steps.info.outputs.environment }}"}
   signing_environment: {description: GitHub environment holding the upload key, value: "${{ steps.info.outputs.signing_environment }}"}
@@ -29,4 +35,5 @@ runs:
       env:
         APP: ${{ inputs.app }}
         TAG: ${{ inputs.tag }}
-      run: python -m release_bot ${APP:+--app "$APP"} app-info --tag "$TAG" >> "$GITHUB_OUTPUT"
+        PLATFORM: ${{ inputs.platform }}
+      run: python -m release_bot ${APP:+--app "$APP"} --platform "$PLATFORM" app-info --tag "$TAG" >> "$GITHUB_OUTPUT"

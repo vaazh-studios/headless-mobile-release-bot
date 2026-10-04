@@ -84,14 +84,18 @@ The keystore must be your Play App Signing **upload key**. Flutter: replace the 
 
 Set `package_name`, the Crashlytics table (`<package_with_underscores>_ANDROID_REALTIME`), the channel IDs and the heroes. **Tune `health.min_distinct_users`:** at 2%, an app with 100k daily users only gives about 2k users on the new version. If the minimum is higher than that, Monday will always hold.
 
-## 7. Dry run during your next manual release
+## 7. Doctor, then shadow mode during your next manual release
 
-1. Copy `release_bot/`, `.github/` and `release-bot.yml` into your Android repo (keep the paths), or start from **Use this template**. Leave out `examples/`, `sim/` and the `sandbox-*.yml` workflows if you don't want them.
-2. Before relying on the bot, run **"Android · Health check"** with `dry_run: true` while a release is rolling out.
-3. Compare the scorecard numbers with **Play Console → Android vitals**. In particular, check that crash and ANR rates come back as fractions (`0.0109` = 1.09%).
-4. Run **"Android · Rollout step"** with `dry_run: true` on a Monday to see what it *would* do.
-
----
+1. **Actions → Android · Doctor.** It checks the Google login, Play publishing, Play Vitals, the
+   Crashlytics table, Grafana, the Slack channels and the hero group, and tells you exactly what to
+   fix. Run it until it says "All good."
+2. Set the repo variable **`RELEASE_BOT_MODE=shadow`** and `RELEASE_BOT_ENABLED=true`.
+3. Release by hand as usual. The bot reads the real data, makes every decision and posts what it
+   *would have* done in a separate "🫥 Shadow run" thread, without changing anything on the store.
+   Identical decisions are posted once.
+4. Compare its decisions and numbers with Play Console. Tune `health.rules` until you agree.
+5. Remove `RELEASE_BOT_MODE` (or set it to `live`). Consider a first live run on Play's
+   **internal** track (`play.track: internal`) before production.
 
 ## Commands (local)
 

@@ -177,11 +177,12 @@ class MockVitals:
 
 
 class MockCrashlytics:
-    def __init__(self, store: MockStore):
+    def __init__(self, store: MockStore, is_live=None):
         self.store = store
+        self.is_live = is_live or (lambda: bool(store.fraction_now()))
 
-    def new_fatal_issues(self, version_code: int) -> list[dict]:
-        if not self.store.fraction_now():
+    def new_fatal_issues(self, version_code: int | None = None, display_version: str | None = None) -> list[dict]:
+        if not self.is_live():
             return []
         issues = INCIDENTS[self.store.data.get("incident", "none")].get("crashlytics", [])
         return [{"issue_id": f"mock-{i}", **x} for i, x in enumerate(issues)]
@@ -198,3 +199,65 @@ class MockGrafana:
 def on_duty_logins() -> set[str]:
     """Sandbox stand-in for @android-release-hero (Slack user groups need a paid plan)."""
     return {x.strip() for x in os.environ.get("MOCK_ON_DUTY", "").split(",") if x.strip()}
+
+
+class MockAppStore:
+    """App Store Connect stand-in for an iOS phased release. Review finishes after
+    MOCK_REVIEW_MINUTES; each rollout run counts as one more phased-release day."""
+
+    def __init__(self, store: MockStore, dry_run: bool = False):
+        self.store = store
+        self.dry_run = dry_run
+
+    @property
+    def _v(self) -> dict | None:
+        return self.store.data.get("ios")
+
+    def current(self):
+        from release_bot.appstore import IOSRelease
+        v = self._v
+        if not v:
+            return None
+        if v["state"] == "WAITING_FOR_REVIEW" and _now() >= datetime.fromisoformat(v["approved_at"]):
+            v["state"] = "PENDING_DEVELOPER_RELEASE"
+        return IOSRelease(v["version"], v["version_id"], v["state"], "phased-1", v["phased_state"], v.get("day"))
+
+    def submit(self, version, whats_new, locale, build_number=None):
+        if self.dry_run:
+            print(f"[dry-run] would submit iOS {version} for review")
+            return None
+        self.store.data["ios"] = {
+            "version": version, "version_id": f"ver-{version}", "state": "WAITING_FOR_REVIEW",
+            "phased_state": "INACTIVE", "day": None, "submitted_at": _now().isoformat(),
+            "approved_at": (_now() + timedelta(minutes=_env_int("MOCK_REVIEW_MINUTES", 5))).isoformat(),
+        }
+        self.store.data["incident"] = "none"
+        return self.current()
+
+    def start(self, rel):
+        if self.dry_run:
+            print("[dry-run] would release; phased release day 1")
+            return
+        self._v.update(state="READY_FOR_DISTRIBUTION", phased_state="ACTIVE", day=1)
+
+    def set_phased(self, rel, state):
+        if self.dry_run:
+            print(f"[dry-run] would set phased release {state}")
+            return
+        self._v["phased_state"] = state
+
+    def next_day(self):
+        """Mock only: Apple moves an active phased release forward one day per day."""
+        v = self._v
+        if v and v["phased_state"] == "ACTIVE" and v.get("day"):
+            v["day"] = min(v["day"] + 1, 7)
+            if v["day"] == 7:
+                v["phased_state"] = "COMPLETE"
+
+    def submitted_at(self):
+        v = self._v
+        return datetime.fromisoformat(v["submitted_at"]) if v else None
+
+    def is_live(self) -> bool:
+        v = self._v
+        return bool(v and v["state"] == "READY_FOR_DISTRIBUTION")
