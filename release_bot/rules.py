@@ -27,7 +27,13 @@ from release_bot.gate import Finding, Level
 from release_bot.policy import PolicyError, parse_percent
 
 ACTIONS = {"halt": Level.HALT, "hold": Level.HOLD, "notify": Level.NOTIFY}
-SOURCES = ("play_vitals", "crashlytics", "grafana", "datadog")
+SOURCES = ("play_vitals", "crashlytics", "grafana", "datadog", "sentry", "http", "pagerduty", "amplitude")
+# Sources that yield numbers per version (compared with thresholds / the previous version).
+METRIC_SOURCES = ("play_vitals", "sentry", "http", "amplitude")
+SENTRY_METRICS = {"crash_free_sessions": "crash-free sessions", "crash_free_users": "crash-free users"}
+# Sources whose values are rates (shown as %); http values are shown as plain numbers.
+RATE_SOURCES = ("play_vitals", "sentry", "amplitude")
+THRESHOLDS = ("above", "below", "above_previous_by", "below_previous_by")
 VITALS_METRICS = {   # rule name → Play Developer Reporting API metric
     "user_perceived_crash_rate": "userPerceivedCrashRate",
     "user_perceived_anr_rate": "userPerceivedAnrRate",
@@ -53,14 +59,19 @@ class Rule:
     source: str
     action: str
     metric: str | None = None
-    above: float | None = None              # absolute rate (fraction)
-    above_previous_by: float | None = None  # relative: 0.25 = 25% worse than previous version
+    above: float | None = None              # absolute: value ≥ above
+    below: float | None = None              # absolute: value ≤ below (e.g. crash-free, conversion)
+    above_previous_by: float | None = None  # relative: 0.25 = 25% higher than the previous version
+    below_previous_by: float | None = None  # relative: 0.10 = 10% lower than the previous version
     at_least: int | None = None             # count (crashlytics users)
     severity: tuple[str, ...] = ()
     alert: str | None = None                # regex on Grafana alertname
     status: tuple[str, ...] = ()            # Datadog: alert / warn
     priority: tuple[int, ...] = ()          # Datadog: P1..P5 (empty = any)
     monitor: str | None = None              # regex on Datadog monitor name
+    urgency: tuple[str, ...] = ()           # PagerDuty: high / low
+    service: str | None = None              # PagerDuty: regex on service name
+    title: str | None = None                # PagerDuty: regex on incident title
 
     @property
     def level(self) -> Level:
@@ -85,15 +96,18 @@ def parse_rule(raw: dict, i: int) -> Rule:
         raise RuleError(f"{what}: action must be halt, hold or notify")
     rule = Rule(name=raw.get("name") or f"rule {i}", source=source, action=action, metric=raw.get("metric"))
 
-    if source == "play_vitals":
-        if rule.metric not in VITALS_METRICS:
+    if source in METRIC_SOURCES:
+        if source == "play_vitals" and rule.metric not in VITALS_METRICS:
             raise RuleError(f"{what}: metric must be one of {', '.join(VITALS_METRICS)}")
-        if ("above" in raw) == ("above_previous_by" in raw):
-            raise RuleError(f"{what}: set exactly one of `above` (e.g. '0.47%') or `above_previous_by` (e.g. '25%')")
-        if "above" in raw:
-            rule.above = _rate(raw["above"], what)
-        else:
-            rule.above_previous_by = _rate(raw["above_previous_by"], what)
+        if source == "sentry" and rule.metric not in SENTRY_METRICS:
+            raise RuleError(f"{what}: metric must be one of {', '.join(SENTRY_METRICS)}")
+        if source in ("http", "amplitude") and not rule.metric:
+            raise RuleError(f"{what}: set `metric` to the name of a check under health.sources.{source}")
+        given = [k for k in THRESHOLDS if k in raw]
+        if len(given) != 1:
+            raise RuleError(f"{what}: set exactly one of `above` / `below` (e.g. '0.47%') or "
+                            "`above_previous_by` / `below_previous_by` (e.g. '25%')")
+        setattr(rule, given[0], _rate(raw[given[0]], what))
     elif source == "crashlytics":
         rule.metric = rule.metric or "new_fatal_issue_users"
         if rule.metric not in CRASHLYTICS_METRICS:
@@ -109,6 +123,15 @@ def parse_rule(raw: dict, i: int) -> Rule:
         rule.monitor = raw.get("monitor")
         if rule.monitor:
             re.compile(rule.monitor)
+    elif source == "pagerduty":
+        urg = raw.get("urgency", "high")
+        rule.urgency = tuple(x.lower() for x in ([urg] if isinstance(urg, str) else urg))
+        if not set(rule.urgency) <= {"high", "low"}:
+            raise RuleError(f"{what}: PagerDuty urgency must be high and/or low")
+        rule.service, rule.title = raw.get("service"), raw.get("title")
+        for rx in (rule.service, rule.title):
+            if rx:
+                re.compile(rx)
     else:  # grafana
         sev = raw.get("severity")
         if not sev:
@@ -184,8 +207,11 @@ def evaluate(norm: dict, signals: dict) -> list[Finding]:
             findings.append(Finding(source, Level.HOLD, f"could not fetch: {data}"))
             continue
         rules = [r for r in norm["rules"] if r.source == source]
-        if source == "play_vitals":
-            findings += _eval_vitals(rules, data, norm["min_users"])
+        if source in METRIC_SOURCES:
+            min_users = (norm["sources"].get(source) or {}).get("min_users", norm["min_users"])
+            findings += _eval_metrics(source, rules, data, min_users)
+        elif source == "pagerduty":
+            findings += _eval_pagerduty(rules, data)
         elif source == "crashlytics":
             findings += _eval_crashlytics(rules, data)
         elif source == "grafana":
@@ -195,37 +221,64 @@ def evaluate(norm: dict, signals: dict) -> list[Finding]:
     return findings
 
 
-def _eval_vitals(rules: list[Rule], data: dict, min_users: int) -> list[Finding]:
-    src = "play-vitals"
+def _metric_key(source: str, metric: str) -> str:
+    return VITALS_METRICS[metric] if source == "play_vitals" else metric
+
+
+def _metric_label(source: str, key: str) -> str:
+    if source == "play_vitals":
+        return VITALS_LABELS[key]
+    if source == "sentry":
+        return SENTRY_METRICS.get(key, key)
+    return key.replace("_", " ")
+
+
+def _fmt(source: str, x: float) -> str:
+    return f"{x * 100:.2f}%" if source in RATE_SOURCES else f"{x:g}"
+
+
+def _eval_metrics(source: str, rules: list[Rule], data: dict, min_users: int) -> list[Finding]:
+    """Numbers per version: `data` = {"new": {metric: value, "_users": n}, "prev": {...}}.
+    `_users` (when present) gates on min_users; http checks usually have none."""
+    src = source.replace("_", "-")
     new, prev = data.get("new"), data.get("prev") or {}
     if not new:
-        return [Finding(src, Level.NOT_ENOUGH_DATA, "no data for this version yet (review pending or vitals lag)")]
-    users = new.get("distinctUsers") or 0
-    if users < min_users:
-        return [Finding(src, Level.NOT_ENOUGH_DATA, f"{int(users)} daily users < {min_users} minimum")]
+        return [Finding(src, Level.NOT_ENOUGH_DATA, "no data for this version yet (review pending or data lag)")]
+    users = new.get("_users", new.get("distinctUsers"))
+    if users is not None and users < min_users:
+        who = "daily users" if source == "play_vitals" else "users"
+        return [Finding(src, Level.NOT_ENOUGH_DATA, f"{int(users)} {who} < {min_users} minimum")]
 
-    findings, metrics = [], []
+    findings, keys = [], []
     for r in rules:
-        api = VITALS_METRICS[r.metric]
-        if api not in metrics:
-            metrics.append(api)
-    for api in metrics:
-        value = new.get(api)
+        key = _metric_key(source, r.metric)
+        if key not in keys:
+            keys.append(key)
+    for key in keys:
+        value = new.get(key)
         if value is None:
+            if source == "http":
+                findings.append(Finding(src, Level.HOLD, f"{key}: no value returned"))
             continue
-        label, base = VITALS_LABELS[api], prev.get(api)
+        label, base, f = _metric_label(source, key), prev.get(key), (lambda x: _fmt(source, x))
         breached = []
-        for r in (r for r in rules if VITALS_METRICS[r.metric] == api):
+        for r in (r for r in rules if _metric_key(source, r.metric) == key):
             if r.above is not None and value >= r.above:
-                breached.append(Finding(src, r.level, f"{label} {_pct(value)} ≥ {_pct(r.above)} ({r.name})"))
+                breached.append(Finding(src, r.level, f"{label} {f(value)} ≥ {f(r.above)} ({r.name})"))
+            elif r.below is not None and value <= r.below:
+                breached.append(Finding(src, r.level, f"{label} {f(value)} ≤ {f(r.below)} ({r.name})"))
             elif r.above_previous_by is not None and base and value > base * (1 + r.above_previous_by):
                 breached.append(Finding(src, r.level,
-                    f"{label} {_pct(value)} is {value / base:.2f}× previous ({_pct(base)}), "
+                    f"{label} {f(value)} is {value / base:.2f}× previous ({f(base)}), "
                     f"limit +{r.above_previous_by * 100:g}% ({r.name})"))
+            elif r.below_previous_by is not None and base and value < base * (1 - r.below_previous_by):
+                breached.append(Finding(src, r.level,
+                    f"{label} {f(value)} is {(1 - value / base) * 100:.1f}% below previous ({f(base)}), "
+                    f"limit −{r.below_previous_by * 100:g}% ({r.name})"))
         if breached:
-            findings.append(max(breached, key=lambda f: f.level))
+            findings.append(max(breached, key=lambda x: x.level))
         else:
-            findings.append(Finding(src, Level.OK, f"{label} {_pct(value)}" + (f" vs {_pct(base)} previous" if base else "")))
+            findings.append(Finding(src, Level.OK, f"{label} {f(value)}" + (f" vs {f(base)} previous" if base else "")))
     return findings
 
 
@@ -295,6 +348,13 @@ DEFAULT_RULES = {
         {"name": "Monitor alerting", "source": "datadog", "status": "alert", "action": "halt"},
         {"name": "Monitor warning", "source": "datadog", "status": "warn", "action": "hold"},
     ],
+    "sentry": [
+        {"name": "Crash-free users floor", "source": "sentry", "metric": "crash_free_users", "below": "99%", "action": "halt"},
+        {"name": "Crash-free users drop", "source": "sentry", "metric": "crash_free_users", "below_previous_by": "0.5%", "action": "hold"},
+    ],
+    "pagerduty": [
+        {"name": "Open high-urgency incident", "source": "pagerduty", "urgency": "high", "action": "hold"},
+    ],
 }
 
 
@@ -304,3 +364,18 @@ def with_default_rules(norm: dict, sources) -> dict:
     extra = [parse_rule(r, i) for src in sources if src not in have
              for i, r in enumerate(DEFAULT_RULES.get(src, []), 1)]
     return {**norm, "rules": norm["rules"] + extra}
+
+
+def _eval_pagerduty(rules: list[Rule], data: dict) -> list[Finding]:
+    src = "pagerduty"
+    findings = []
+    for inc in data.get("incidents", []):
+        matched = [r for r in rules
+                   if inc.get("urgency", "high") in r.urgency
+                   and (not r.service or re.search(r.service, inc.get("service", ""), re.I))
+                   and (not r.title or re.search(r.title, inc.get("title", ""), re.I))]
+        if matched:
+            rule = max(matched, key=lambda r: r.level)
+            findings.append(Finding(src, rule.level,
+                                    f"open {inc.get('urgency', '')} incident on {inc.get('service', '?')}: {inc.get('title', '')}"))
+    return findings or [Finding(src, Level.OK, "no matching open incidents")]

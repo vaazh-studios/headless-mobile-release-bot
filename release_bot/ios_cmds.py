@@ -83,6 +83,7 @@ def check(deps, args) -> int:
                              "Fix forward, or run *Resume* if this was a false alarm." + c._links(deps))
         c._alert(deps, f"🛑 {c._name(deps)} {rel.version} phased release auto-paused at {pct}.{trigger}\n{verdict.scorecard()}")
         c._announce(deps, f"🛑 {c._name(deps)} *{rel.version}* rollout paused at {pct} while we investigate.")
+        c._halt_effects(deps, rel.version, f"phased release auto-paused at {pct}", automatic=True)
     elif verdict.level in (Level.HOLD, Level.NOTIFY) and not deps.slack.thread_contains(key, verdict.scorecard()):
         icon, text = ("⚠️", "Health needs a human look") if verdict.level == Level.HOLD else ("🔔", "FYI, still rolling out")
         deps.slack.post(key, f"{icon} {text}.{trigger}\n{verdict.scorecard()}{c._links(deps)}")
@@ -149,6 +150,7 @@ def advance(deps, args) -> int:
             deps.slack.post(key, f"🛑 {c._mention(deps.cfg)}*Phased release PAUSED* instead of releasing to everyone.\n"
                                  f"{verdict.scorecard()}{c._links(deps)}")
             c._announce(deps, f"🛑 {c._name(deps)} *{rel.version}* rollout paused at {c._p(current)} while we investigate.")
+            c._halt_effects(deps, rel.version, f"phased release auto-paused at {c._p(current)}", automatic=True)
         elif verdict.level == Level.HOLD or thin:
             deps.slack.post(key, f"⏸ {c._mention(deps.cfg)}Holding at {c._p(current)} (day {rel.day}); "
                                  f"Apple keeps going on its own schedule.\n{verdict.scorecard()}{c._links(deps)}")
@@ -179,6 +181,7 @@ def halt(deps, args) -> int:
     deps.slack.post(key, f"🛑 {c._mention(deps.cfg)}Phased release paused manually by {who}. Reason: {args.reason or 'n/a'}")
     c._alert(deps, f"🛑 {c._name(deps)} {rel.version} phased release paused by {who}. Reason: {args.reason or 'n/a'}")
     c._announce(deps, f"🛑 {c._name(deps)} *{rel.version}* rollout paused while we investigate.")
+    c._halt_effects(deps, rel.version, f"phased release paused manually by {who}", automatic=False)
     return 0
 
 

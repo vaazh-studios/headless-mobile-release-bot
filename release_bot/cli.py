@@ -43,6 +43,10 @@ class Deps:
     crashlytics: object = None
     grafana: object = None
     datadog: object = None
+    http: object = None                  # generic HTTP/JSON checks
+    sentry: object = None
+    pagerduty: object = None
+    amplitude: object = None
     appstore: object = None              # iOS: App Store Connect client
     store: object = None                 # mock mode: state to persist after the command
     on_duty_logins: set | None = None    # mock mode: stand-in for @android-release-hero
@@ -63,7 +67,12 @@ def shadow_mode(cfg: dict) -> bool:
 
 def _slack_for(cfg: dict, dry_run: bool):
     slack = Slack(os.environ.get("SLACK_BOT_TOKEN"), cfg["slack"]["channel_id"], dry_run=dry_run)
-    return ShadowSlack(slack) if shadow_mode(cfg) and not dry_run else slack
+    out = ShadowSlack(slack) if shadow_mode(cfg) and not dry_run else slack
+    teams_url = os.environ.get("TEAMS_WEBHOOK_URL")
+    if teams_url and (cfg.get("notify") or {}).get("teams", True):
+        from release_bot.notify import Fanout, Teams
+        out = Fanout(out, Teams(teams_url, dry_run=dry_run))
+    return out
 
 
 def build_mock_deps(cfg: dict, dry_run: bool) -> Deps:
@@ -119,11 +128,25 @@ def build_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
         from release_bot.grafana import Grafana
         deps.grafana = Grafana(os.environ["GRAFANA_URL"], os.environ["GRAFANA_TOKEN"],
                                sources["grafana"].get("matchers", []))
-    _add_datadog(deps, sources)
+    _add_optional_sources(deps, sources)
     return deps
 
 
-def _add_datadog(deps: Deps, sources: dict) -> None:
+def _add_optional_sources(deps: Deps, sources: dict) -> None:
+    """Sources shared by Android and iOS (besides Grafana): Datadog, HTTP checks, Sentry, PagerDuty."""
+    if "http" in sources:
+        from release_bot.http_source import HttpSource
+        deps.http = HttpSource(sources["http"])
+    if "sentry" in sources:
+        from release_bot.sentry import Sentry
+        deps.sentry = Sentry(sources["sentry"], os.environ.get("SENTRY_AUTH_TOKEN", ""))
+    if "pagerduty" in sources:
+        from release_bot.pagerduty import PagerDuty
+        deps.pagerduty = PagerDuty(os.environ.get("PAGERDUTY_API_TOKEN", ""), sources["pagerduty"].get("service_ids", []))
+    if "amplitude" in sources:
+        from release_bot.amplitude import Amplitude
+        deps.amplitude = Amplitude(sources["amplitude"], os.environ.get("AMPLITUDE_API_KEY", ""),
+                                   os.environ.get("AMPLITUDE_SECRET_KEY", ""))
     if "datadog" in sources:
         from release_bot.datadog import Datadog
         deps.datadog = Datadog(os.environ["DD_API_KEY"], os.environ["DD_APP_KEY"],
@@ -147,11 +170,12 @@ def _build_ios_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
         from release_bot.grafana import Grafana
         deps.grafana = Grafana(os.environ["GRAFANA_URL"], os.environ["GRAFANA_TOKEN"],
                                sources["grafana"].get("matchers", []))
-    _add_datadog(deps, sources)
+    _add_optional_sources(deps, sources)
     return deps
 
 
-def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios_version: str | None = None) -> Verdict:
+def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios_version: str | None = None,
+                   ctx: dict | None = None) -> Verdict:
     """Query each configured source, then apply the health rules. A source that
     errors counts as HOLD: we can't prove the release is healthy, but an outage
     elsewhere shouldn't halt it."""
@@ -184,6 +208,16 @@ def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios
         fetch("grafana", lambda: {"alerts": deps.grafana.active_alerts()})
     if deps.datadog and "datadog" in wanted:
         fetch("datadog", lambda: {"monitors": deps.datadog.firing_monitors()})
+    ctx = {"package": deps.cfg.get("package_name"), "app": deps.cfg.get("app_id"),
+           "platform": deps.cfg.get("platform", "android"), "version": ios_version, **(ctx or {})}
+    if deps.http and "http" in wanted:
+        fetch("http", lambda: deps.http.metrics(ctx))
+    if deps.sentry and "sentry" in wanted:
+        fetch("sentry", lambda: deps.sentry.metrics(ctx))
+    if deps.amplitude and "amplitude" in wanted and ctx.get("version"):
+        fetch("amplitude", lambda: deps.amplitude.metrics(ctx))
+    if deps.pagerduty and "pagerduty" in wanted:
+        fetch("pagerduty", lambda: {"incidents": deps.pagerduty.open_incidents()})
     return Verdict(rules.evaluate(norm, signals))
 
 
@@ -231,6 +265,17 @@ def _summary(deps: Deps, title: str, verdict: Verdict | None = None, extra: str 
         lines += [f"- {gate.ICONS[f.level]} `{f.source}` {f.message}" for f in verdict.findings] or ["- no signals"]
     with open(path, "a") as fh:
         fh.write("\n".join(lines) + "\n\n")
+
+
+def _halt_effects(deps: Deps, version: str, summary: str, automatic: bool) -> None:
+    """Page on-call / flip kill-switch flags after a halt, and say so in the thread."""
+    from release_bot import notify
+    client = deps.play if deps.play is not None else deps.appstore
+    dry = shadow_mode(deps.cfg) or bool(getattr(client, "dry_run", False))
+    dedup = f"release-bot-{deps.cfg.get('app_id', 'app')}-{deps.cfg.get('platform', 'android')}-{version}"
+    lines = notify.on_halt(deps.cfg, f"{_name(deps)} {version}: {summary}", dedup, dry, automatic)
+    if lines:
+        deps.slack.post(_key(deps, version), "\n".join(lines))
 
 
 def _mention(cfg: dict) -> str:
@@ -317,7 +362,8 @@ def cmd_check(deps: Deps, args) -> int:
         print("No in-progress rollout; nothing to check.")
         return 0
     version = live.get("name", "?")
-    verdict = collect_health(deps, TrackState.version_code(live), TrackState.version_code(state.completed))
+    verdict = collect_health(deps, TrackState.version_code(live), TrackState.version_code(state.completed),
+                             ctx=_version_ctx(live, state.completed))
     print(verdict.scorecard())
     _summary(deps, f"health check · {version} at {_p(live.get('userFraction', 0))}", verdict,
              f"**{verdict.level.name}**" + (f" · triggered by {args.trigger}" if args.trigger else ""))
@@ -331,6 +377,7 @@ def cmd_check(deps: Deps, args) -> int:
                              "Fix forward with a new build, or run *Android · Resume* if this was a false alarm." + _links(deps))
         _alert(deps, f"🛑 {_name(deps)} {version} rollout auto-halted at {pct}.{trigger}\n{verdict.scorecard()}")
         _announce(deps, f"🛑 {_name(deps)} *{version}* rollout halted at {pct} while we investigate.")
+        _halt_effects(deps, version, f"rollout auto-halted at {pct}", automatic=True)
     elif verdict.level in (Level.HOLD, Level.NOTIFY):
         # Runs every few hours: only speak up when the picture changed since the last post.
         if deps.slack.thread_contains(key, verdict.scorecard()):
@@ -343,6 +390,12 @@ def cmd_check(deps: Deps, args) -> int:
             deps.slack.post(key, f"🔔 FYI, still rolling out.{trigger}\n{verdict.scorecard()}")
             _alert(deps, f"🔔 {_name(deps)} {version}: FYI, still rolling out.{trigger}\n{verdict.scorecard()}")
     return 0
+
+
+def _version_ctx(live: dict, previous: dict | None) -> dict:
+    """Template values for HTTP checks and Sentry release names."""
+    return {"version": live.get("name"), "version_code": TrackState.version_code(live),
+            "previous_version": (previous or {}).get("name"), "previous_version_code": TrackState.version_code(previous)}
 
 
 def _submitted_at(deps: Deps, version: str, code: int | None) -> datetime | None:
@@ -394,7 +447,8 @@ def cmd_advance(deps: Deps, args) -> int:
         _summary(deps, f"rollout step · {version}", extra=f"At **{_p(current)}**; nothing due today ({sched.summary()}).")
         return 0
 
-    verdict = collect_health(deps, TrackState.version_code(live), TrackState.version_code(state.completed))
+    verdict = collect_health(deps, TrackState.version_code(live), TrackState.version_code(state.completed),
+                             ctx=_version_ctx(live, state.completed))
     print(verdict.scorecard())
     _summary(deps, f"rollout step · {version}", verdict,
              f"At **{_p(current)}**, next step **{_p(nxt)}** · health **{verdict.level.name}**")
@@ -404,6 +458,7 @@ def cmd_advance(deps: Deps, args) -> int:
         deps.slack.post(key, f"🛑 {_mention(cfg)}*Rollout HALTED* instead of moving to {_p(nxt)}.\n{verdict.scorecard()}{_links(deps)}")
         _alert(deps, f"🛑 {_name(deps)} {version} rollout auto-halted at {_p(current)}.\n{verdict.scorecard()}")
         _announce(deps, f"🛑 {_name(deps)} *{version}* rollout halted at {_p(current)} while we investigate.")
+        _halt_effects(deps, version, f"rollout auto-halted at {_p(current)}", automatic=True)
     elif verdict.level == Level.HOLD or thin_blocks:
         deps.slack.post(key, f"⏸ {_mention(cfg)}Holding at {_p(current)} (planned {_p(nxt)}).\n{verdict.scorecard()}{_links(deps)}")
     else:
@@ -427,6 +482,7 @@ def cmd_halt(deps: Deps, args) -> int:
     deps.slack.post(_key(deps, version), f"🛑 {_mention(deps.cfg)}Halted manually by {who}. Reason: {args.reason or 'n/a'}")
     _alert(deps, f"🛑 {_name(deps)} {version} rollout halted manually by {who}. Reason: {args.reason or 'n/a'}")
     _announce(deps, f"🛑 {_name(deps)} *{version}* rollout halted while we investigate.")
+    _halt_effects(deps, version, f"rollout halted manually by {who}", automatic=False)
     return 0
 
 

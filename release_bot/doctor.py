@@ -32,6 +32,9 @@ class Factory:
     bigquery_table: object = None    # (project, dataset, table) -> raises if missing
     grafana: object = None           # (url, token, matchers) -> object with active_alerts()
     datadog: object = None           # (api_key, app_key, query, site) -> object with firing_monitors()
+    http: object = None              # (source_cfg) -> object with metrics(ctx)
+    pagerduty: object = None         # (token, service_ids) -> object with open_incidents()
+    sentry: object = None            # (source_cfg, token) -> object with metrics(ctx)
     slack_call: object = None        # (method, **params) -> dict (Slack Web API response)
     env: dict = field(default_factory=lambda: dict(os.environ))
 
@@ -103,6 +106,20 @@ def run(cfg: dict, factory: Factory) -> list[Check]:
             checks.append(_grafana_check(norm, factory))
         if "datadog" in norm["sources"]:
             checks.append(_datadog_check(norm, factory))
+        if "http" in norm["sources"]:
+            checks += _http_checks(cfg, norm, factory)
+        if "pagerduty" in norm["sources"]:
+            checks.append(_pagerduty_check(norm, factory))
+        if "sentry" in norm["sources"]:
+            checks.append(_sentry_check(cfg, norm, factory))
+        if "amplitude" in norm["sources"]:
+            ok = bool(factory.env.get("AMPLITUDE_API_KEY") and factory.env.get("AMPLITUDE_SECRET_KEY"))
+            funnels = ", ".join((norm["sources"]["amplitude"].get("funnels") or {}).keys()) or "none"
+            checks.append(Check(OK if ok else FAIL, "Amplitude", f"funnels: {funnels}" if ok else
+                                "AMPLITUDE_API_KEY or AMPLITUDE_SECRET_KEY is not set",
+                                "" if ok else "Copy the project's API key and secret key (Settings → Projects) into "
+                                "those secrets. Note: each check costs Amplitude API quota."))
+    checks += _notify_checks(cfg, factory.env)
 
     checks += _slack_checks(cfg, factory)
     return checks
@@ -200,6 +217,77 @@ def _datadog_check(norm: dict, f: Factory) -> Check:
         if s in (401, 403) else "Check DD_SITE and that api.<site> is reachable from GitHub-hosted runners."))
 
 
+def _http_checks(cfg: dict, norm: dict, f: Factory) -> list[Check]:
+    src = norm["sources"]["http"]
+    out = []
+    names = list((src.get("checks") or {}).keys())
+    if not names:
+        return [Check(FAIL, "HTTP checks", "health.sources.http has no checks", "Add checks: {name: {url, value}}")]
+    ctx = {"version": "0.0.0", "version_code": 0, "package": cfg.get("package_name"), "app": cfg.get("app_id"),
+           "platform": cfg.get("platform", "android")}
+    for name in names:
+        def one(name=name):
+            client = f.http({"checks": {name: src["checks"][name]}})
+            value = client.metrics(ctx)["new"].get(name)
+            if value is None:
+                return Check(WARN, f"HTTP check {name}", "reachable, but the `value` path found nothing "
+                             "(fine if there's no data for a placeholder version)", "Check the `value` path against the JSON.")
+            return Check(OK, f"HTTP check {name}", f"reachable · value {value:g}")
+        out.append(_try(f"HTTP check {name}", one, lambda s, e: (
+            f"HTTP {s or '?'} ({e})",
+            "Check the URL, and that every ${NAME} it uses is in the RELEASE_BOT_HTTP_ENV secret.")))
+    return out
+
+
+def _pagerduty_check(norm: dict, f: Factory) -> Check:
+    token = f.env.get("PAGERDUTY_API_TOKEN")
+    if not token:
+        return Check(FAIL, "PagerDuty", "PAGERDUTY_API_TOKEN is not set",
+                     "Create a read-only REST API key in PagerDuty and store it as PAGERDUTY_API_TOKEN.")
+    ids = norm["sources"]["pagerduty"].get("service_ids", [])
+    def pd():
+        n = len(f.pagerduty(token, ids).open_incidents())
+        return Check(OK, "PagerDuty", f"readable · {n} open incident(s) on {len(ids) or 'all'} service(s)")
+    return _try("PagerDuty", pd, lambda s, e: (f"HTTP {s or '?'} ({e})",
+                "Check PAGERDUTY_API_TOKEN and the service IDs (Service → Settings → ID)."))
+
+
+def _sentry_check(cfg: dict, norm: dict, f: Factory) -> Check:
+    token = f.env.get("SENTRY_AUTH_TOKEN")
+    if not token:
+        return Check(FAIL, "Sentry", "SENTRY_AUTH_TOKEN is not set",
+                     "Create an internal integration or user token with org:read and project:read, "
+                     "store it as SENTRY_AUTH_TOKEN.")
+    src = norm["sources"]["sentry"]
+    def sentry():
+        client = f.sentry(src, token)
+        client.metrics({"version": "0.0.0", "version_code": 0, "package": cfg.get("package_name"),
+                        "platform": cfg.get("platform", "android")})
+        return Check(OK, "Sentry", f"sessions API readable for {src.get('org')}/{src.get('project')}")
+    return _try("Sentry", sentry, lambda s, e: (f"HTTP {s or '?'} ({e})",
+                "Check org, project (numeric id), the token's scopes, and `url` for EU orgs (https://de.sentry.io)."))
+
+
+def _notify_checks(cfg: dict, env: dict) -> list[Check]:
+    out = []
+    n = cfg.get("notify") or {}
+    if env.get("TEAMS_WEBHOOK_URL"):
+        out.append(Check(OK, "Microsoft Teams", "webhook configured (messages are mirrored; not test-posted)"))
+    if n.get("pagerduty"):
+        out.append(Check(OK if env.get("PAGERDUTY_ROUTING_KEY") else FAIL, "PagerDuty paging",
+                         "routing key set" if env.get("PAGERDUTY_ROUTING_KEY") else "PAGERDUTY_ROUTING_KEY is not set",
+                         "" if env.get("PAGERDUTY_ROUTING_KEY") else "Add an Events API v2 integration to a service and "
+                         "store its integration key as PAGERDUTY_ROUTING_KEY."))
+    opt = (cfg.get("on_halt") or {}).get("optimizely")
+    if opt:
+        ok = bool(env.get("OPTIMIZELY_TOKEN"))
+        out.append(Check(OK if ok else FAIL, "Optimizely kill switch",
+                         f"will turn off {', '.join(opt.get('flags', []))} in {opt.get('environment', 'production')}"
+                         if ok else "OPTIMIZELY_TOKEN is not set",
+                         "" if ok else "Create a personal access token in Optimizely and store it as OPTIMIZELY_TOKEN."))
+    return out
+
+
 def _slack_checks(cfg: dict, f: Factory) -> list[Check]:
     if not f.env.get("SLACK_BOT_TOKEN"):
         return [Check(WARN, "Slack", "SLACK_BOT_TOKEN is not set: messages go to the run logs only",
@@ -289,13 +377,26 @@ def default_factory() -> Factory:
         from release_bot.datadog import Datadog
         return Datadog(api_key, app_key, query, site)
 
+    def http(src):
+        from release_bot.http_source import HttpSource
+        return HttpSource(src)
+
+    def pagerduty(token, ids):
+        from release_bot.pagerduty import PagerDuty
+        return PagerDuty(token, ids)
+
+    def sentry(src, token):
+        from release_bot.sentry import Sentry
+        return Sentry(src, token)
+
     def slack_call(method, **params):
         import requests
         resp = requests.get(f"https://slack.com/api/{method}", params=params, timeout=30,
                             headers={"Authorization": f"Bearer {os.environ['SLACK_BOT_TOKEN']}"})
         return resp.json()
 
-    return Factory(google_identity, play, vitals, bigquery_table, grafana, slack_call=slack_call, datadog=datadog)
+    return Factory(google_identity, play, vitals, bigquery_table, grafana, slack_call=slack_call, datadog=datadog,
+                   http=http, pagerduty=pagerduty, sentry=sentry)
 
 
 def render(app_label: str, checks: list[Check]) -> str:

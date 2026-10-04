@@ -10,7 +10,7 @@ Your release hero clicks one button on Thursday. After that the bot:
 
 - builds the signed `.aab` from your tag and publishes **GitHub release notes**
 - uploads to Play production at your first step (e.g. **1%**)
-- **checks health every few hours** (Play Console vitals by default; Crashlytics, Grafana and Datadog optional) and **halts automatically**
+- **checks health every few hours** (Play Console vitals by default; Crashlytics, Sentry, Grafana, Datadog, PagerDuty, Amplitude or any HTTP/JSON API optional) and **halts automatically**
   on a new crash, Google's ANR/crash thresholds, or a critical alert
 - moves through **your schedule** (e.g. 1% Mon → 2% Tue → 100% Wed), only when **your health rules** are green
 - keeps your team in the loop in Slack: one thread per release, announcements, SLO alerts
@@ -61,6 +61,7 @@ Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 | [Configuration](docs/configuration.md) | Rollout schedules (aligned/separate, weekdays or day N) and health rules (halt/hold/notify), per team |
 | [Setup](docs/setup.md) | One-time production setup |
 | [Multiple apps & accounts](docs/multi-app.md) | Several apps across several Play developer accounts from one repo |
+| [Integrations](docs/integrations.md) | Sentry, PagerDuty, Amplitude, generic HTTP checks, Microsoft Teams, Optimizely kill switch |
 | [iOS](docs/ios.md) | App Store phased releases with the same schedule and rules (beta) |
 | [Use from your repo](examples/caller-workflows) | Short caller workflows for the reusable `rw-*.yml` workflows |
 | [Simulator](docs/simulator.md) | Replaying release weeks with mock data, writing scenarios |
@@ -85,7 +86,9 @@ the Play jobs never see. Nothing listens for inbound traffic. Details: [SECURITY
 - [x] Multiple apps and multiple Play developer accounts from one repo
 - [x] iOS (beta): App Store phased release, started on schedule, paused by halt rules — [docs/ios.md](docs/ios.md)
 - [x] Datadog monitors as a health source
-- [ ] More health sources: Sentry, Bugsnag
+- [x] Sentry, PagerDuty (signal + paging), Amplitude guardrails, generic HTTP/JSON checks
+- [x] Microsoft Teams notifications, Optimizely kill switch on halt
+- [ ] Bugsnag, Embrace, store ratings; Jira/Linear release tickets
 
 ## License
 

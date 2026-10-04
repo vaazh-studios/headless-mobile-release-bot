@@ -132,6 +132,13 @@ health:
 | `crashlytics` | Crashlytics BigQuery streaming export + BigQuery read | Android, iOS | Minutes |
 | `grafana` | `GRAFANA_URL` variable, `GRAFANA_TOKEN` secret (Viewer) | Both | Minutes |
 | `datadog` | `DD_API_KEY` and `DD_APP_KEY` secrets (`monitors_read`), `DD_SITE` variable | Both | Minutes |
+| `sentry` | `SENTRY_AUTH_TOKEN` | Both | Minutes |
+| `http` | `RELEASE_BOT_HTTP_ENV` (for `${NAME}` secrets) | Both | Whatever the API gives |
+| `pagerduty` | `PAGERDUTY_API_TOKEN` | Both | Real time |
+| `amplitude` | `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY` | Both | Hours |
+
+Details and examples for each: [integrations.md](integrations.md). Metric sources (`play_vitals`,
+`sentry`, `http`, `amplitude`) take `above`, `below`, `above_previous_by` or `below_previous_by`.
 
 iOS can't use Play Vitals, so an iOS app needs at least one of Crashlytics, Grafana or Datadog;
 `doctor` warns when a platform has no health signals at all.
