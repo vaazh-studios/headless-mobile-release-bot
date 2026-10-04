@@ -42,6 +42,7 @@ class Deps:
     vitals: object = None
     crashlytics: object = None
     grafana: object = None
+    datadog: object = None
     appstore: object = None              # iOS: App Store Connect client
     store: object = None                 # mock mode: state to persist after the command
     on_duty_logins: set | None = None    # mock mode: stand-in for @android-release-hero
@@ -74,7 +75,7 @@ def build_mock_deps(cfg: dict, dry_run: bool) -> Deps:
         appstore = mock.MockAppStore(store, dry_run or shadow_mode(cfg))
         return Deps(cfg=cfg, play=None, slack=_slack_for(cfg, dry_run),
                     crashlytics=mock.MockCrashlytics(store, is_live=appstore.is_live),
-                    grafana=mock.MockGrafana(store), appstore=appstore, store=store,
+                    grafana=mock.MockGrafana(store), datadog=mock.MockDatadog(store), appstore=appstore, store=store,
                     on_duty_logins=mock.on_duty_logins())
     return Deps(
         cfg=cfg,
@@ -84,6 +85,7 @@ def build_mock_deps(cfg: dict, dry_run: bool) -> Deps:
         vitals=mock.MockVitals(store),
         crashlytics=mock.MockCrashlytics(store),
         grafana=mock.MockGrafana(store),
+        datadog=mock.MockDatadog(store),
         store=store,
         on_duty_logins=mock.on_duty_logins(),
     )
@@ -117,7 +119,15 @@ def build_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
         from release_bot.grafana import Grafana
         deps.grafana = Grafana(os.environ["GRAFANA_URL"], os.environ["GRAFANA_TOKEN"],
                                sources["grafana"].get("matchers", []))
+    _add_datadog(deps, sources)
     return deps
+
+
+def _add_datadog(deps: Deps, sources: dict) -> None:
+    if "datadog" in sources:
+        from release_bot.datadog import Datadog
+        deps.datadog = Datadog(os.environ["DD_API_KEY"], os.environ["DD_APP_KEY"],
+                               sources["datadog"].get("query", ""), os.environ.get("DD_SITE") or "datadoghq.com")
 
 
 def _build_ios_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
@@ -137,6 +147,7 @@ def _build_ios_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
         from release_bot.grafana import Grafana
         deps.grafana = Grafana(os.environ["GRAFANA_URL"], os.environ["GRAFANA_TOKEN"],
                                sources["grafana"].get("matchers", []))
+    _add_datadog(deps, sources)
     return deps
 
 
@@ -147,7 +158,8 @@ def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios
     norm = rules.normalize(deps.cfg.get("health"))
     wanted = set(norm["sources"])
     if deps.store is not None:
-        wanted = set(rules.SOURCES)  # mock mode: the demo exercises every source
+        wanted = set(rules.SOURCES)  # mock mode: the demo exercises every source,
+        norm = rules.with_default_rules(norm, wanted)  # with recommended rules where you have none
     if ios_version is not None:
         wanted.discard("play_vitals")  # Play only; Apple's API has no crash rate
     signals: dict = {}
@@ -170,6 +182,8 @@ def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios
             fetch("crashlytics", lambda: {"new_issues": deps.crashlytics.new_fatal_issues(live_code)})
     if deps.grafana and "grafana" in wanted:
         fetch("grafana", lambda: {"alerts": deps.grafana.active_alerts()})
+    if deps.datadog and "datadog" in wanted:
+        fetch("datadog", lambda: {"monitors": deps.datadog.firing_monitors()})
     return Verdict(rules.evaluate(norm, signals))
 
 
@@ -592,6 +606,8 @@ def cmd_plan(raw: dict, app: str | None) -> int:
                 cond = (f"≥ {rule.above * 100:g}%" if rule.above is not None else
                         f"> previous +{rule.above_previous_by * 100:g}%" if rule.above_previous_by is not None else
                         f"≥ {rule.at_least} users" if rule.at_least is not None else
+                        (f"status {'/'.join(rule.status)}" + (f", priority {'/'.join(f'P{x}' for x in rule.priority)}" if rule.priority else "")
+                         + (f", monitor ~ /{rule.monitor}/" if rule.monitor else "")) if rule.source == "datadog" else
                         f"severity {'/'.join(rule.severity)}" + (f", alert ~ /{rule.alert}/" if rule.alert else ""))
                 off = "" if rule.source in norm["sources"] else "  [source off]"
                 print(f"    {rule.action:<6} {rule.source}:{rule.metric or 'alert'} {cond}  ({rule.name}){off}")

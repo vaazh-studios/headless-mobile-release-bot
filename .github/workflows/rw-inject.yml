@@ -29,7 +29,7 @@ on:
         type: string
         default: main
       incident:
-        description: "new-crash | anr-regression | anr-over-threshold | grafana-critical | grafana-warning | none"
+        description: "new-crash | anr-regression | anr-over-threshold | grafana-critical | grafana-warning | datadog-alert | datadog-warn | none"
         type: string
         required: true
     # Declared so callers in another org/account can pass them (secrets: inherit only
@@ -38,6 +38,10 @@ on:
       SLACK_BOT_TOKEN:
         required: false
       GRAFANA_TOKEN:
+        required: false
+      DD_API_KEY:
+        required: false
+      DD_APP_KEY:
         required: false
       RELEASE_BOT_REPO_TOKEN:
         required: false

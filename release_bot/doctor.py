@@ -31,6 +31,7 @@ class Factory:
     vitals: object = None            # (cfg) -> object with latest_by_version()
     bigquery_table: object = None    # (project, dataset, table) -> raises if missing
     grafana: object = None           # (url, token, matchers) -> object with active_alerts()
+    datadog: object = None           # (api_key, app_key, query, site) -> object with firing_monitors()
     slack_call: object = None        # (method, **params) -> dict (Slack Web API response)
     env: dict = field(default_factory=lambda: dict(os.environ))
 
@@ -83,12 +84,25 @@ def run(cfg: dict, factory: Factory) -> list[Check]:
                         f"{mode}" + (": decisions are posted, nothing is changed on the store" if mode == "shadow" else ""),
                         "" if mode in ("live", "shadow") else "mode must be live or shadow"))
 
+    ios = cfg.get("platform") == "ios"
+    usable = set(norm["sources"]) & {r.source for r in norm["rules"]}
+    if ios:
+        usable.discard("play_vitals")
+    if not mock and not usable:
+        checks.append(Check(WARN, "health signals",
+                            f"no health source with rules for {'iOS' if ios else 'Android'}: the bot will advance "
+                            "without checking anything",
+                            "Add a source and rules (iOS: Crashlytics, Grafana or Datadog; Play Vitals is Android only). "
+                            "See docs/configuration.md."))
     if mock:
-        checks.append(Check(OK, "store + health sources", "mock mode: Play, Play Vitals, Crashlytics and Grafana are simulated"))
+        checks.append(Check(OK, "store + health sources", "mock mode: the store, Play Vitals, Crashlytics, Grafana and Datadog are simulated"))
     else:
-        checks += _google_checks(cfg, norm, factory)
+        if not ios:
+            checks += _google_checks(cfg, norm, factory)
         if "grafana" in norm["sources"]:
             checks.append(_grafana_check(norm, factory))
+        if "datadog" in norm["sources"]:
+            checks.append(_datadog_check(norm, factory))
 
     checks += _slack_checks(cfg, factory)
     return checks
@@ -168,6 +182,22 @@ def _grafana_check(norm: dict, f: Factory) -> Check:
         f"{url}: HTTP {s or '?'} ({e})",
         "Create a Grafana service account with the Viewer role and store its token as GRAFANA_TOKEN."
         if s in (401, 403) else "Check GRAFANA_URL is reachable from GitHub-hosted runners."))
+
+
+def _datadog_check(norm: dict, f: Factory) -> Check:
+    api, app, site = f.env.get("DD_API_KEY"), f.env.get("DD_APP_KEY"), f.env.get("DD_SITE") or "datadoghq.com"
+    if not api or not app:
+        return Check(FAIL, "Datadog", "DD_API_KEY or DD_APP_KEY is not set",
+                     "Store a Datadog API key and an application key (scope monitors_read) as the DD_API_KEY and "
+                     "DD_APP_KEY secrets; set DD_SITE if you're not on datadoghq.com. Or remove health.sources.datadog.")
+    query = norm["sources"]["datadog"].get("query", "")
+    def datadog():
+        firing = f.datadog(api, app, query, site).firing_monitors()
+        return Check(OK, "Datadog", f"{site} readable · {len(firing)} matching monitor(s) alerting now")
+    return _try("Datadog", datadog, lambda s, e: (
+        f"{site}: HTTP {s or '?'} ({e})",
+        "Check the API key, the application key's monitors_read scope, and DD_SITE (e.g. datadoghq.eu)."
+        if s in (401, 403) else "Check DD_SITE and that api.<site> is reachable from GitHub-hosted runners."))
 
 
 def _slack_checks(cfg: dict, f: Factory) -> list[Check]:
@@ -255,13 +285,17 @@ def default_factory() -> Factory:
         from release_bot.grafana import Grafana
         return Grafana(url, token, matchers)
 
+    def datadog(api_key, app_key, query, site):
+        from release_bot.datadog import Datadog
+        return Datadog(api_key, app_key, query, site)
+
     def slack_call(method, **params):
         import requests
         resp = requests.get(f"https://slack.com/api/{method}", params=params, timeout=30,
                             headers={"Authorization": f"Bearer {os.environ['SLACK_BOT_TOKEN']}"})
         return resp.json()
 
-    return Factory(google_identity, play, vitals, bigquery_table, grafana, slack_call)
+    return Factory(google_identity, play, vitals, bigquery_table, grafana, slack_call=slack_call, datadog=datadog)
 
 
 def render(app_label: str, checks: list[Check]) -> str:

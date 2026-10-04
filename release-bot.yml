@@ -35,25 +35,32 @@ defaults:
     when_data_is_thin: hold
 
   # ── Health: where signals come from, and what to do about them ──
+  # Default: Google Play Console's Android vitals (Play Developer Reporting API).
+  # It needs nothing beyond the Play service account. Everything else is optional:
+  # uncomment a source AND its rules below. See docs/configuration.md.
   health:
-    min_users: 1000                  # Play Vitals daily users needed before judging
-    sources:                         # remove a source to turn it off
-      play_vitals: {}
-      crashlytics:
-        project: my-firebase-project
-        dataset: firebase_crashlytics
-        table: com_example_sandbox_ANDROID_REALTIME   # <package_with_underscores>_ANDROID_REALTIME
-        lookback_days: 30
-      # grafana:                     # needs GRAFANA_URL / GRAFANA_TOKEN
+    min_users: 1000                  # daily users on the new version before Play Vitals is trusted
+    sources:
+      play_vitals: {}                # Android only. Data is 1–2 days behind
+      # crashlytics:                 # fast new-crash detection; Android + iOS. Needs the BigQuery export
+      #   project: my-firebase-project
+      #   dataset: firebase_crashlytics
+      #   table: com_example_sandbox_ANDROID_REALTIME   # iOS: ios_table (default <bundle>_IOS_REALTIME)
+      #   lookback_days: 30
+      # grafana:                     # GRAFANA_URL variable + GRAFANA_TOKEN secret
       #   matchers: ['team="mobile"']
+      # datadog:                     # DD_API_KEY + DD_APP_KEY secrets, DD_SITE variable
+      #   query: 'tag:"team:mobile"' # Datadog monitor search syntax
     rules:                           # action: halt (stop) | hold (don't advance) | notify (tell, keep going)
       - {name: Google ANR line,   source: play_vitals, metric: user_perceived_anr_rate,   above: "0.47%", action: halt}
       - {name: Google crash line, source: play_vitals, metric: user_perceived_crash_rate, above: "1.09%", action: halt}
       - {name: ANR regression,    source: play_vitals, metric: user_perceived_anr_rate,   above_previous_by: "25%", action: hold}
       - {name: Crash regression,  source: play_vitals, metric: user_perceived_crash_rate, above_previous_by: "25%", action: hold}
-      - {name: New crash,         source: crashlytics, metric: new_fatal_issue_users, at_least: 25, action: halt}
-      - {name: Pager alert,       source: grafana, severity: critical, action: halt}
-      - {name: Warning alert,     source: grafana, severity: warning,  action: hold}
+      # - {name: New crash,       source: crashlytics, metric: new_fatal_issue_users, at_least: 25, action: halt}
+      # - {name: Critical alert,  source: grafana, severity: critical, action: halt}
+      # - {name: Warning alert,   source: grafana, severity: warning,  action: hold}
+      # - {name: Monitor alerting, source: datadog, status: alert, priority: [1, 2], action: halt}
+      # - {name: Monitor warning,  source: datadog, status: warn, action: notify}
 
   # Channel IDs can also come from repo variables SLACK_CHANNEL_ID,
   # SLACK_ANNOUNCE_CHANNEL_ID, SLACK_ALERTS_CHANNEL_ID and SLACK_HERO_USERGROUP_ID.

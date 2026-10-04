@@ -31,6 +31,8 @@ INCIDENTS = {
     "grafana-critical": {"grafana": [{
         "labels": {"alertname": "Android API 5xx > 2%", "severity": "critical", "team": "mobile"},
         "annotations": {"summary": "5xx rate 3.4% on /v2/checkout for the new app version"}}]},
+    "datadog-alert": {"datadog": [{"name": "[Android] Checkout error rate > 2%", "status": "alert", "priority": 1, "tags": ["team:mobile"]}]},
+    "datadog-warn": {"datadog": [{"name": "[Android] App start p90 > 3s", "status": "warn", "priority": 3, "tags": ["team:mobile"]}]},
     "grafana-warning": {"grafana": [{
         "labels": {"alertname": "Android p95 latency > 1.5s", "severity": "warning", "team": "mobile"},
         "annotations": {"summary": "p95 latency 1.8s on /v2/feed"}}]},
@@ -261,3 +263,11 @@ class MockAppStore:
     def is_live(self) -> bool:
         v = self._v
         return bool(v and v["state"] == "READY_FOR_DISTRIBUTION")
+
+
+class MockDatadog:
+    def __init__(self, store: MockStore):
+        self.store = store
+
+    def firing_monitors(self) -> list[dict]:
+        return copy.deepcopy(INCIDENTS[self.store.data.get("incident", "none")].get("datadog", []))

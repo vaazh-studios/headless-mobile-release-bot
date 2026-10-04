@@ -10,7 +10,7 @@ Your release hero clicks one button on Thursday. After that the bot:
 
 - builds the signed `.aab` from your tag and publishes **GitHub release notes**
 - uploads to Play production at your first step (e.g. **1%**)
-- **checks health every few hours** (Crashlytics, Play Vitals, Grafana) and **halts automatically**
+- **checks health every few hours** (Play Console vitals by default; Crashlytics, Grafana and Datadog optional) and **halts automatically**
   on a new crash, Google's ANR/crash thresholds, or a critical alert
 - moves through **your schedule** (e.g. 1% Mon → 2% Tue → 100% Wed), only when **your health rules** are green
 - keeps your team in the loop in Slack: one thread per release, announcements, SLO alerts
@@ -84,7 +84,8 @@ the Play jobs never see. Nothing listens for inbound traffic. Details: [SECURITY
 - [x] Reusable workflows (`uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-*.yml@main`)
 - [x] Multiple apps and multiple Play developer accounts from one repo
 - [x] iOS (beta): App Store phased release, started on schedule, paused by halt rules — [docs/ios.md](docs/ios.md)
-- [ ] More health sources: Sentry, Datadog, Bugsnag
+- [x] Datadog monitors as a health source
+- [ ] More health sources: Sentry, Bugsnag
 
 ## License
 

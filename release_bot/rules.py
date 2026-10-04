@@ -27,7 +27,7 @@ from release_bot.gate import Finding, Level
 from release_bot.policy import PolicyError, parse_percent
 
 ACTIONS = {"halt": Level.HALT, "hold": Level.HOLD, "notify": Level.NOTIFY}
-SOURCES = ("play_vitals", "crashlytics", "grafana")
+SOURCES = ("play_vitals", "crashlytics", "grafana", "datadog")
 VITALS_METRICS = {   # rule name → Play Developer Reporting API metric
     "user_perceived_crash_rate": "userPerceivedCrashRate",
     "user_perceived_anr_rate": "userPerceivedAnrRate",
@@ -58,6 +58,9 @@ class Rule:
     at_least: int | None = None             # count (crashlytics users)
     severity: tuple[str, ...] = ()
     alert: str | None = None                # regex on Grafana alertname
+    status: tuple[str, ...] = ()            # Datadog: alert / warn
+    priority: tuple[int, ...] = ()          # Datadog: P1..P5 (empty = any)
+    monitor: str | None = None              # regex on Datadog monitor name
 
     @property
     def level(self) -> Level:
@@ -96,6 +99,16 @@ def parse_rule(raw: dict, i: int) -> Rule:
         if rule.metric not in CRASHLYTICS_METRICS:
             raise RuleError(f"{what}: metric must be one of {', '.join(CRASHLYTICS_METRICS)}")
         rule.at_least = int(raw.get("at_least", 1))
+    elif source == "datadog":
+        status = raw.get("status", "alert")
+        rule.status = tuple(x.lower() for x in ([status] if isinstance(status, str) else status))
+        if not set(rule.status) <= {"alert", "warn"}:
+            raise RuleError(f"{what}: Datadog status must be alert and/or warn")
+        prio = raw.get("priority", [])
+        rule.priority = tuple(int(x) for x in ([prio] if isinstance(prio, (int, str)) else prio))
+        rule.monitor = raw.get("monitor")
+        if rule.monitor:
+            re.compile(rule.monitor)
     else:  # grafana
         sev = raw.get("severity")
         if not sev:
@@ -177,6 +190,8 @@ def evaluate(norm: dict, signals: dict) -> list[Finding]:
             findings += _eval_crashlytics(rules, data)
         elif source == "grafana":
             findings += _eval_grafana(rules, data)
+        elif source == "datadog":
+            findings += _eval_datadog(rules, data)
     return findings
 
 
@@ -243,3 +258,49 @@ def _eval_grafana(rules: list[Rule], data: dict) -> list[Finding]:
         summary = a.get("annotations", {}).get("summary", "")
         findings.append(Finding(src, rule.level, f"firing: {name}" + (f" — {summary}" if summary else "")))
     return findings or [Finding(src, Level.OK, "no matching alerts firing")]
+
+
+def _eval_datadog(rules: list[Rule], data: dict) -> list[Finding]:
+    src = "datadog"
+    findings = []
+    for m in data.get("monitors", []):
+        matched = [r for r in rules
+                   if m["status"] in r.status
+                   and (not r.priority or (m.get("priority") or 0) in r.priority)
+                   and (not r.monitor or re.search(r.monitor, m["name"], re.I))]
+        if matched:
+            rule = max(matched, key=lambda r: r.level)
+            prio = f" P{m['priority']}" if m.get("priority") else ""
+            findings.append(Finding(src, rule.level, f"{m['status']}{prio}: {m['name']}"))
+    return findings or [Finding(src, Level.OK, "no matching monitors alerting")]
+
+
+# Recommended starting rules per source. Copy them into health.rules, or let
+# mock mode use them for sources you haven't written rules for.
+DEFAULT_RULES = {
+    "play_vitals": [
+        {"name": "Google ANR line", "source": "play_vitals", "metric": "user_perceived_anr_rate", "above": "0.47%", "action": "halt"},
+        {"name": "Google crash line", "source": "play_vitals", "metric": "user_perceived_crash_rate", "above": "1.09%", "action": "halt"},
+        {"name": "ANR regression", "source": "play_vitals", "metric": "user_perceived_anr_rate", "above_previous_by": "25%", "action": "hold"},
+        {"name": "Crash regression", "source": "play_vitals", "metric": "user_perceived_crash_rate", "above_previous_by": "25%", "action": "hold"},
+    ],
+    "crashlytics": [
+        {"name": "New crash", "source": "crashlytics", "metric": "new_fatal_issue_users", "at_least": 25, "action": "halt"},
+    ],
+    "grafana": [
+        {"name": "Critical alert", "source": "grafana", "severity": "critical", "action": "halt"},
+        {"name": "Warning alert", "source": "grafana", "severity": "warning", "action": "hold"},
+    ],
+    "datadog": [
+        {"name": "Monitor alerting", "source": "datadog", "status": "alert", "action": "halt"},
+        {"name": "Monitor warning", "source": "datadog", "status": "warn", "action": "hold"},
+    ],
+}
+
+
+def with_default_rules(norm: dict, sources) -> dict:
+    """Add DEFAULT_RULES for each of `sources` that has no rule of its own."""
+    have = {r.source for r in norm["rules"]}
+    extra = [parse_rule(r, i) for src in sources if src not in have
+             for i, r in enumerate(DEFAULT_RULES.get(src, []), 1)]
+    return {**norm, "rules": norm["rules"] + extra}

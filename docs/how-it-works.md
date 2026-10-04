@@ -38,17 +38,23 @@ The hero check is only trustworthy if nobody can run a modified copy of the work
 
 ## What it checks
 
-| Source | Signal | Effect |
-|---|---|---|
-| Crashlytics (BigQuery streaming) | Fatal crash group first seen in this build, affecting ≥ `new_issue_min_users` users | **Halt** |
-| Play Vitals (Reporting API) | User-perceived crash rate ≥ 1.09% or ANR rate ≥ 0.47% (Google's bad-behaviour lines) | **Halt** |
-| | Crash or ANR rate > 1.25× the previous version | Hold |
-| | Fewer than `min_distinct_users` daily users yet | Hold (not enough data) |
-| Grafana | Matching alert firing with `severity=critical` | **Halt** |
-| | … with `severity=warning` | Hold |
-| Any source erroring | can't verify | Hold, never halt |
+You choose: see [configuration.md](configuration.md#health-rules). Out of the box the template
+watches **Play Console's Android vitals** only, with these rules:
+
+| Rule | Effect |
+|---|---|
+| User-perceived ANR rate ≥ 0.47% or crash rate ≥ 1.09% (Google's bad-behaviour lines) | **Halt** |
+| ANR or crash rate more than 25% worse than the previous version | Hold |
+| Fewer than `min_users` daily users on the new version yet | Hold (not enough data) |
+| A source that can't be reached | Hold, never halt |
+
+Optional sources add faster signals: **Crashlytics** (a fatal crash group new in this build),
+**Grafana** (alerts by severity and name) and **Datadog** (monitors by status, priority and name).
 
 Good to know:
-- **Play Vitals data is 1–2 days old,** so Monday's decision for 20% uses the weekend's data at 2%. Crashlytics and Grafana are near real time.
-- **Crashlytics' export has no session counts,** so it's used to spot new crashes; crash and ANR *rates* come from Play Vitals.
-- **There's no rollback on Play.** A halt stops new users from getting the update; users who already have it keep it. Fix forward with a higher `versionCode`.
+- **Play Vitals data is 1–2 days old,** so Monday's decision uses the weekend's data. Crashlytics,
+  Grafana and Datadog are near real time and can halt within minutes (with a webhook).
+- **iOS can't use Play Vitals.** Give iOS apps at least one of the optional sources.
+- **There's no rollback on Play.** A halt stops new users from getting the update; users who
+  already have it keep it. Fix forward with a higher `versionCode`. On iOS the bot pauses the
+  phased release.

@@ -127,7 +127,7 @@ def test_notify_rule_tells_but_does_not_block():
 @pytest.mark.parametrize("bad, msg", [
     ({"source": "play_vitals", "metric": "user_perceived_anr_rate", "action": "halt"}, "exactly one"),
     ({"source": "play_vitals", "metric": "battery", "above": "1%"}, "metric must be"),
-    ({"source": "datadog", "action": "halt"}, "source must be"),
+    ({"source": "newrelic", "action": "halt"}, "source must be"),
     ({"source": "grafana", "action": "halt"}, "severity"),
     ({"source": "crashlytics", "action": "explode"}, "action must be"),
 ])

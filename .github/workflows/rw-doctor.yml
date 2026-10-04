@@ -35,6 +35,10 @@ on:
         required: false
       GRAFANA_TOKEN:
         required: false
+      DD_API_KEY:
+        required: false
+      DD_APP_KEY:
+        required: false
       RELEASE_BOT_REPO_TOKEN:
         required: false
       ASC_KEY_ID:
@@ -114,5 +118,8 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           GRAFANA_URL: ${{ vars.GRAFANA_URL }}
           GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
+          DD_SITE: ${{ vars.DD_SITE }}
           GH_TOKEN: ${{ secrets.RELEASE_BOT_REPO_TOKEN || github.token }}
         run: python -m release_bot --app "$APP" --platform "$PLATFORM" doctor

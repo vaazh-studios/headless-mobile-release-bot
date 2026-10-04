@@ -51,16 +51,25 @@ Also turn **off Managed publishing**, or approved changes will wait for a manual
 - **Copy the IDs** of those channels and of the `@android-release-hero` user group into `release-bot.yml`.
 - **Map each possible hero** in `access.release_heroes` (`github-login: SLACK_USER_ID`).
 
-## 4. Grafana
+## 4. Optional health sources
 
-- **API access:** create a service account with the Viewer role and save its token as `GRAFANA_TOKEN`.
-- **Labels:** label the alert rules that matter for a release with `team="mobile"` and `severity="critical"` (halt) or `"warning"` (hold). An `app_version` label makes alerts much more precise.
-- **Optional instant halt:** add a webhook contact point (routed for `team=mobile, severity=critical`, next to your SLO channel):
-  - URL: `https://api.github.com/repos/ORG/REPO/dispatches`, method POST
-  - Authorization: `Bearer <fine-grained token, this repo only, Contents: write>`
-  - Custom payload: `{"event_type":"rollout-alert","client_payload":{"alertname":"{{ .CommonLabels.alertname }}"}}`
-  - This needs a Grafana version with custom webhook payloads. Without it, skip this; the 3-hour check still catches the alert.
-  - The payload is only used as a label. The bot re-checks real data before halting, so a forged call can't halt anything on its own.
+Play Vitals works with the service account from step 2 and is the only source turned on by
+default. Add others in `release-bot.yml` (source + rules, see [configuration.md](configuration.md)):
+
+- **Crashlytics:** Firebase → Project settings → Integrations → BigQuery → enable Crashlytics with
+  **streaming**, then give the service account `roles/bigquery.dataViewer` on the
+  `firebase_crashlytics` dataset and `roles/bigquery.jobUser` on the project.
+- **Grafana:** a service account with the Viewer role; its token as the `GRAFANA_TOKEN` secret,
+  the URL as the `GRAFANA_URL` variable. Label the alert rules that matter (`team="mobile"`,
+  `severity="critical"`/`"warning"`). Optional instant halts: a webhook contact point that calls
+  `POST https://api.github.com/repos/ORG/REPO/dispatches` with
+  `{"event_type":"rollout-alert","client_payload":{"alertname":"{{ .CommonLabels.alertname }}"}}`
+  and a fine-grained token (this repo only, Contents: write). The bot re-checks real data before
+  halting, so a forged call can't halt anything by itself.
+- **Datadog:** an API key and an application key with the `monitors_read` scope, as the
+  `DD_API_KEY` and `DD_APP_KEY` secrets; your site (e.g. `datadoghq.eu`) as the `DD_SITE` variable.
+  Tag the monitors that matter (e.g. `team:mobile`) and set `sources.datadog.query`. For instant
+  halts, add a Datadog webhook that calls the same `dispatches` endpoint.
 
 ## 5. GitHub repository settings
 
@@ -68,9 +77,9 @@ Also turn **off Managed publishing**, or approved changes will wait for a manual
 |---|---|---|
 | Environment **`play-production`** (deployment branches: `main`) | var `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github-actions` |
 | | var `GCP_SERVICE_ACCOUNT` | `android-release-bot@PROJECT_ID.iam.gserviceaccount.com` |
-| | var `GRAFANA_URL` | `https://grafana.example.com` |
+| | var `GRAFANA_URL`, secret `GRAFANA_TOKEN` | optional, Grafana source |
+| | secrets `DD_API_KEY`, `DD_APP_KEY`, var `DD_SITE` | optional, Datadog source |
 | | secret `SLACK_BOT_TOKEN` | `xoxb-…` |
-| | secret `GRAFANA_TOKEN` | Grafana service account token |
 | Environment **`android-signing`** (deployment branches: `main`) | secret `ANDROID_UPLOAD_KEYSTORE_BASE64` | `base64 -i upload.jks` |
 | | secrets `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` | |
 | Repo variable | `RELEASE_BOT_ENABLED` | `true`: lets the scheduled rollout and health runs start (they stay idle until set) |

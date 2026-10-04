@@ -39,6 +39,10 @@ on:
         required: false
       GRAFANA_TOKEN:
         required: false
+      DD_API_KEY:
+        required: false
+      DD_APP_KEY:
+        required: false
       RELEASE_BOT_REPO_TOKEN:
         required: false
       ASC_KEY_ID:

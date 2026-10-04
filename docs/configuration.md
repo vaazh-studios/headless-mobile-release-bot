@@ -105,20 +105,36 @@ health:
 
 ## Health rules
 
+**Default: Play Console's Android vitals only.** It needs nothing beyond the Play service
+account. Crashlytics, Grafana and Datadog are optional: add the source under `health.sources` and
+rules that use it. A source without rules is never queried.
+
 ```yaml
 health:
   min_users: 1000
-  sources:                  # where signals come from; remove one to turn it off
-    play_vitals: {}
-    crashlytics: {project: my-firebase, dataset: firebase_crashlytics, table: com_app_ANDROID_REALTIME, lookback_days: 30}
+  sources:                  # remove or comment out a source to turn it off
+    play_vitals: {}                                   # default, Android only
+    crashlytics: {project: my-firebase, dataset: firebase_crashlytics, table: com_app_ANDROID_REALTIME}
     grafana: {matchers: ['team="mobile"']}
+    datadog: {query: 'tag:"team:mobile" tag:"service:android"'}
   rules:
     - {name: Google ANR line, source: play_vitals, metric: user_perceived_anr_rate, above: "0.47%", action: halt}
     - {name: ANR regression,  source: play_vitals, metric: user_perceived_anr_rate, above_previous_by: "25%", action: hold}
     - {name: New crash,       source: crashlytics, metric: new_fatal_issue_users, at_least: 25, action: halt}
     - {name: Pager alert,     source: grafana, severity: critical, action: halt}
-    - {name: Latency,         source: grafana, severity: warning, alert: "latency", action: notify}
+    - {name: P1/P2 monitor,   source: datadog, status: alert, priority: [1, 2], action: halt}
+    - {name: Latency,         source: datadog, status: warn, monitor: "latency", action: notify}
 ```
+
+| Source | Needs | Platforms | Speed |
+|---|---|---|---|
+| `play_vitals` (default) | The Play service account (*View app information*) | Android | 1–2 days behind |
+| `crashlytics` | Crashlytics BigQuery streaming export + BigQuery read | Android, iOS | Minutes |
+| `grafana` | `GRAFANA_URL` variable, `GRAFANA_TOKEN` secret (Viewer) | Both | Minutes |
+| `datadog` | `DD_API_KEY` and `DD_APP_KEY` secrets (`monitors_read`), `DD_SITE` variable | Both | Minutes |
+
+iOS can't use Play Vitals, so an iOS app needs at least one of Crashlytics, Grafana or Datadog;
+`doctor` warns when a platform has no health signals at all.
 
 ### Actions
 
@@ -138,6 +154,7 @@ outage elsewhere never halts it.
 | `play_vitals` | `user_perceived_anr_rate`, `user_perceived_crash_rate`, `anr_rate`, `crash_rate` | `above: "0.47%"` (absolute) **or** `above_previous_by: "25%"` (vs the previous version) |
 | `crashlytics` | `new_fatal_issue_users`: users hit by a fatal crash group first seen in this build | `at_least: 25` |
 | `grafana` | firing alerts matching `sources.grafana.matchers` | `severity: critical` (or a list), optional `alert:` regex on the alert name |
+| `datadog` | monitors in Alert/Warn state matching `sources.datadog.query` (Datadog monitor search syntax) | `status: alert` and/or `warn`, optional `priority: [1, 2]`, optional `monitor:` regex on the monitor name |
 
 Percentages are written as strings with `%` (`"0.47%"`); plain numbers are read as fractions
 (`0.0047`). Google's own "bad behaviour" lines are 0.47% (ANR) and 1.09% (crashes), counted on
