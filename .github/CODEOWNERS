@@ -1,0 +1,6 @@
+# Changes to how releases happen need a maintainer's review.
+# Replace with a team (e.g. @vaazh-studios/release-maintainers) when there is one.
+*                       @nirmaljeffrey
+/.github/               @nirmaljeffrey
+/release_bot/           @nirmaljeffrey
+/release-bot.yml        @nirmaljeffrey

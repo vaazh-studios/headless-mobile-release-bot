@@ -2,12 +2,8 @@ name: "Release bot · Tests"
 
 on:
   pull_request:
-    paths:
-      - "release_bot/**"
-      - "tests/**"
-      - "release-bot.yml"
-      - ".github/actions/**"
-      - ".github/workflows/android-*.yml"
+  push:
+    branches: [main]
 
 permissions:
   contents: read
