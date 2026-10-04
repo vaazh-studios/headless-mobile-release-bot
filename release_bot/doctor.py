@@ -104,7 +104,17 @@ def run(cfg: dict, factory: Factory) -> list[Check]:
                             "simulated; other configured integrations are checked for real below"))
     elif not ios:
         checks += _google_checks(cfg, norm, factory)
-    if True:  # third-party integrations: always checked for real
+    creds = {"grafana": ("GRAFANA_URL", "GRAFANA_TOKEN"), "datadog": ("DD_API_KEY", "DD_APP_KEY"),
+             "pagerduty": ("PAGERDUTY_API_TOKEN",), "sentry": ("SENTRY_AUTH_TOKEN",),
+             "incident_io": ("INCIDENT_IO_API_KEY",), "amplitude": ("AMPLITUDE_API_KEY", "AMPLITUDE_SECRET_KEY")}
+    simulated = set()
+    if mock:  # with no credentials, mock mode simulates the integration; with credentials, check it for real
+        for src, names in creds.items():
+            if src in norm["sources"] and not all(factory.env.get(n) for n in names):
+                simulated.add(src)
+                checks.append(Check(OK, src.replace("_", "."), "simulated (mock mode, no credentials)"))
+        norm = {**norm, "sources": {k: v for k, v in norm["sources"].items() if k not in simulated}}
+    if True:  # third-party integrations: checked for real
         if "grafana" in norm["sources"]:
             checks.append(_grafana_check(norm, factory))
         if "datadog" in norm["sources"]:
@@ -289,6 +299,16 @@ def _incident_io_check(f: Factory) -> Check:
 def _notify_checks(cfg: dict, env: dict) -> list[Check]:
     out = []
     n = cfg.get("notify") or {}
+    mock = env.get("RELEASE_BOT_MOCK", "").lower() == "true"
+    if mock and env.get("MOCK_LIVE_ACTIONS", "").lower() != "true":
+        actions = [name for name, on in (("PagerDuty paging", n.get("pagerduty") is not None),
+                                          ("incident.io", bool(n.get("incident_io"))),
+                                          ("Optimizely kill switch", bool((cfg.get("on_halt") or {}).get("optimizely"))))
+                   if on]
+        if actions:
+            out.append(Check(OK, "halt actions", f"{', '.join(actions)}: simulated in mock mode "
+                             "(set MOCK_LIVE_ACTIONS=true to test them for real)"))
+        return out
     if env.get("TEAMS_WEBHOOK_URL"):
         out.append(Check(OK, "Microsoft Teams", "webhook configured (messages are mirrored; not test-posted)"))
     if n.get("pagerduty") is not None:
@@ -312,10 +332,6 @@ def _notify_checks(cfg: dict, env: dict) -> list[Check]:
                          "INCIDENT_IO_ALERT_TOKEN or alert_source_config_id is missing",
                          "" if ok else "incident.io → Alerts → Sources → add an HTTP source; put its ID in "
                          "notify.incident_io.alert_source_config_id and its token in INCIDENT_IO_ALERT_TOKEN."))
-    if env.get("RELEASE_BOT_MOCK", "").lower() == "true" and env.get("MOCK_LIVE_ACTIONS", "").lower() != "true":
-        if inc or n.get("pagerduty") is not None or (cfg.get("on_halt") or {}).get("optimizely"):
-            out.append(Check(OK, "mock mode safety", "halt actions (paging, flag kill switch) run as dry runs; "
-                             "set MOCK_LIVE_ACTIONS=true to test them for real"))
     opt = (cfg.get("on_halt") or {}).get("optimizely")
     if opt:
         ok = bool(env.get("OPTIMIZELY_TOKEN"))

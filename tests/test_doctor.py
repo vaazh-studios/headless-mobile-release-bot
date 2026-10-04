@@ -131,3 +131,13 @@ def test_missing_channels_read_scope_is_a_warning():
     resp[("conversations.info", "C1")] = {"ok": False, "error": "missing_scope"}
     c = by_name(doctor.run(CFG, factory(slack_call=slack(resp))))["Slack release channel"]
     assert c.status == doctor.WARN and "channels:read" in c.fix
+
+
+def test_mock_mode_without_credentials_reports_simulated():
+    f = factory()
+    f.env = {"RELEASE_BOT_MOCK": "true", "SLACK_BOT_TOKEN": "x", "MOCK_ON_DUTY": "me"}
+    cfg = dict(CFG, notify={"pagerduty": {}}, on_halt={"optimizely": {"project_id": 1, "flags": ["f"]}})
+    checks = {c.name: c for c in doctor.run(cfg, f)}
+    assert checks["grafana"].status == doctor.OK and "simulated" in checks["grafana"].detail
+    assert "simulated" in checks["halt actions"].detail
+    assert not any(c.status == doctor.FAIL for c in checks.values() if c.name not in ("Slack alerts channel",))
