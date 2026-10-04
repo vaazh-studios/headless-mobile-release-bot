@@ -19,10 +19,11 @@ def _schedule(deps):
     return pol, sched
 
 
-def _target(deps, sched, rel):
-    """Highest fraction allowed now. Mock mode: one step per run."""
+def _target(deps, sched, rel, before: float | None = None):
+    """Highest fraction allowed now. Mock mode: one step per run, where Apple
+    moving to the next day counts as that run's step."""
     if deps.store is not None:
-        current = rel.fraction or 0.0
+        current = before if before is not None else (rel.fraction or 0.0)
         higher = [f for f in sched.ladder if f > current + EPS]
         return higher[0] if higher else None
     submitted = None
@@ -94,6 +95,7 @@ def advance(deps, args) -> int:
     if not rel:
         print("No iOS version yet; nothing to do.")
         return 0
+    before = rel.fraction
     if deps.store is not None and rel.state in LIVE and rel.phased_state == "ACTIVE":
         deps.appstore.next_day()          # mock: one run = one phased-release day
         rel = deps.appstore.current()
@@ -110,7 +112,7 @@ def advance(deps, args) -> int:
         return 0
 
     pol, sched = _schedule(deps)
-    target = _target(deps, sched, rel)
+    target = _target(deps, sched, rel, before)
 
     if rel.state in APPROVED_WAITING:
         if target is None:

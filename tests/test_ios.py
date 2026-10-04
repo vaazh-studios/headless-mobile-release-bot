@@ -66,7 +66,7 @@ def test_full_ios_phased_release(ios, capsys):
     s = ios.state()
     assert (s["state"], s["phased_state"], s["day"]) == ("READY_FOR_DISTRIBUTION", "ACTIVE", 1)
     ios("advance")                                   # Apple day 2 → 2% (a schedule step; nothing to do)
-    assert ios.state()["day"] == 2
+    assert ios.state()["day"] == 2 and ios.state()["phased_state"] == "ACTIVE"
     ios("advance")                                   # next step is 100% → release to everyone
     assert ios.state()["phased_state"] == "COMPLETE"
     out = capsys.readouterr().out
@@ -77,11 +77,13 @@ def test_ios_halt_rule_pauses_never_removes(ios, capsys):
     ios("submit", "--aab", "-", "--version", "3.0.0")
     ios.later(minutes=10)
     ios("advance")
+    ios("advance")                                   # day 2, still rolling out
+    assert ios.state()["phased_state"] == "ACTIVE"
     ios("mock-inject", "--incident", "new-crash")
     ios("check")
     assert ios.state()["phased_state"] == "PAUSED"
     ios("advance")                                   # paused: the schedule never touches it
-    assert ios.state()["phased_state"] == "PAUSED" and ios.state()["day"] == 1
+    assert ios.state()["phased_state"] == "PAUSED" and ios.state()["day"] == 2
     assert "PAUSED" in capsys.readouterr().out
     ios("mock-inject", "--incident", "none")
     assert ios("resume", "--reason", "fixed") == 0
