@@ -125,7 +125,7 @@ def on_halt(cfg: dict, summary: str, dedup_key: str, dry_run: bool, automatic: b
             except Exception as e:  # noqa: BLE001 — a paging failure mustn't undo the halt
                 lines.append(f"⚠️ PagerDuty page failed: {e}")
     inc = (cfg.get("notify") or {}).get("incident_io")
-    if inc and automatic:
+    if inc and inc.get("alert_source_config_id") is not None and automatic:
         token = env.get("INCIDENT_IO_ALERT_TOKEN")
         if not token or not inc.get("alert_source_config_id"):
             lines.append("⚠️ incident.io alerting is configured but INCIDENT_IO_ALERT_TOKEN or "
@@ -139,6 +139,23 @@ def on_halt(cfg: dict, summary: str, dedup_key: str, dry_run: bool, automatic: b
                 lines.append("📟 Raised an incident.io alert")
             except Exception as e:  # noqa: BLE001
                 lines.append(f"⚠️ incident.io alert failed: {e}")
+    declare = (inc or {}).get("declare_incident")
+    if declare and automatic:
+        key = env.get("INCIDENT_IO_API_KEY")
+        if not key:
+            lines.append("⚠️ declare_incident is configured but INCIDENT_IO_API_KEY is not set")
+        elif dry_run:
+            lines.append(f"🚨 (dry run) would declare a {declare.get('severity', '')} incident in incident.io".replace("  ", " "))
+        else:
+            from release_bot.incident_io import IncidentIOAdmin
+            try:
+                created = IncidentIOAdmin(key).declare(
+                    summary, summary, dedup_key, severity=declare.get("severity"), mode=declare.get("mode", "standard"),
+                    visibility=declare.get("visibility", "public"), incident_type_id=declare.get("incident_type_id"))
+                ref = created.get("reference") or "incident"
+                lines.append(f"🚨 Declared {ref} in incident.io: {created.get('permalink', '')}".rstrip(": "))
+            except Exception as e:  # noqa: BLE001
+                lines.append(f"⚠️ Declaring the incident failed: {e}")
     opt = (cfg.get("on_halt") or {}).get("optimizely")
     if opt and opt.get("flags"):
         token = env.get("OPTIMIZELY_TOKEN")

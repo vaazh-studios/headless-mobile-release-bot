@@ -286,7 +286,27 @@ def _halt_effects(deps: Deps, version: str, summary: str, automatic: bool) -> No
         deps.slack.post(_key(deps, version), "\n".join(lines))
 
 
+_ON_CALL_CACHE: dict = {}
+
+
+def _incident_io_on_call(schedule_id: str) -> list[dict]:
+    """Current on-call users for an incident.io schedule (cached for the run)."""
+    if schedule_id not in _ON_CALL_CACHE:
+        from release_bot.incident_io import IncidentIOAdmin
+        _ON_CALL_CACHE[schedule_id] = IncidentIOAdmin(os.environ.get("INCIDENT_IO_API_KEY", "")).on_call(schedule_id)
+    return _ON_CALL_CACHE[schedule_id]
+
+
 def _mention(cfg: dict) -> str:
+    """Who to ping: the on-call release hero from incident.io, else the Slack user group."""
+    schedule = (cfg.get("access", {}).get("on_duty") or {}).get("incident_io_schedule_id")
+    if schedule and os.environ.get("INCIDENT_IO_API_KEY"):
+        try:
+            ids = [u["slack_user_id"] for u in _incident_io_on_call(schedule) if u.get("slack_user_id")]
+            if ids:
+                return " ".join(f"<@{i}>" for i in ids) + " "
+        except Exception as e:  # noqa: BLE001 — a lookup failure mustn't block a halt message
+            print(f"::warning::incident.io on-call lookup failed: {e}")
     group = cfg["slack"].get("hero_usergroup_id")
     return f"<!subteam^{group}> " if group else ""
 
@@ -525,6 +545,16 @@ def cmd_authorize(deps: Deps, args) -> int:
     slack_id = heroes.get(args.actor)
     if not slack_id:
         print(f"::error::{args.actor} is not in access.release_heroes in release-bot.yml.")
+        return 1
+    schedule = (deps.cfg.get("access", {}).get("on_duty") or {}).get("incident_io_schedule_id")
+    if schedule:
+        on_call = _incident_io_on_call(schedule)
+        ident = str(slack_id).lower()
+        if any(ident in (u["email"].lower(), u["slack_user_id"].lower()) for u in on_call):
+            print(f"{args.actor} is the on-call release hero (incident.io schedule).")
+            return 0
+        who = ", ".join(u["name"] or u["email"] for u in on_call) or "nobody"
+        print(f"::error::{args.actor} is not on call for the release hero schedule (on call now: {who}).")
         return 1
     group = deps.cfg["slack"]["hero_usergroup_id"]
     if slack_id not in deps.slack.usergroup_members(group):

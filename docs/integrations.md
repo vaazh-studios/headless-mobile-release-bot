@@ -13,7 +13,7 @@ secrets in the right GitHub environment. `python -m release_bot doctor` checks t
 | [Sentry](#sentry) | health | both | `SENTRY_AUTH_TOKEN` |
 | [Generic HTTP/JSON](#generic-httpjson-checks) | health | both | `RELEASE_BOT_HTTP_ENV` |
 | [PagerDuty](#pagerduty) | health + paging | both | `PAGERDUTY_API_TOKEN`, `PAGERDUTY_ROUTING_KEY` |
-| [incident.io](#incidentio) | health + alerting | both | `INCIDENT_IO_API_KEY`, `INCIDENT_IO_ALERT_TOKEN` |
+| [incident.io](#incidentio) | alert or declare an incident on halt; release hero from on-call; optional incident gate | both | `INCIDENT_IO_ALERT_TOKEN`, `INCIDENT_IO_API_KEY` |
 | [Amplitude](#amplitude) | health (business) | both | `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY` |
 | [Microsoft Teams](#microsoft-teams) | notification | — | `TEAMS_WEBHOOK_URL` |
 | [Optimizely kill switch](#optimizely-kill-switch) | action on halt | — | `OPTIMIZELY_TOKEN` |
@@ -137,25 +137,64 @@ notify:
 
 ## incident.io
 
+**Main use: alerting.** When the bot halts or pauses a release by itself, it raises an alert on an
+incident.io **HTTP alert source**, so your normal alert routes, escalations and on-call apply.
+One alert per release (de-duplicated). Manual halts don't alert.
+
+```yaml
+notify:
+  incident_io: {alert_source_config_id: 01HXYZ...}   # Alerts → Sources → HTTP → its ID
+```
+
+Secret: `INCIDENT_IO_ALERT_TOKEN` (the HTTP alert source's token).
+
+**Release hero from an on-call schedule.** Instead of a Slack user group (which needs a paid
+Slack plan), keep the weekly release hero rotation in incident.io. Whoever is on call **right
+now** (after overrides) may submit and resume, and gets the `@mention` on halts.
+
+```yaml
+access:
+  on_duty:
+    incident_io_schedule_id: 01HSCHEDULE...      # On-call → Schedules → the schedule's ID
+  release_heroes:                                # GitHub login → their incident.io email (or Slack user ID)
+    alice-gh: alice@vaazh.com
+    bob-gh: bob@vaazh.com
+```
+
+Hand-over is just the schedule: swap shifts or add an override in incident.io and the permission
+moves with it. Needs `INCIDENT_IO_API_KEY` with access to schedules. Doctor shows who's on call.
+
+**Declare an incident on halt.** On top of (or instead of) an alert, the bot can open an incident
+when it halts by itself, so the halt gets a channel, roles and a timeline. A re-checked halt never
+opens a second incident (the request is idempotent per release).
+
+```yaml
+notify:
+  incident_io:
+    declare_incident:
+      severity: Minor             # a severity name from your incident.io settings
+      mode: test                  # start with test incidents; switch to standard when you trust it
+      visibility: public
+      # incident_type_id: 01H...  # optional
+```
+
+Needs `INCIDENT_IO_API_KEY` with permission to create incidents.
+
+**Optional: open incidents as a gate.** Off unless you add it. Useful if you'd rather not step a
+rollout up while a big incident is open, even an unrelated one.
+
 ```yaml
 health:
   sources:
     incident_io: {}
   rules:
-    - {name: Major incident, source: incident_io, severity: [Critical, Major], action: halt}
-    - {name: Any incident,   source: incident_io, action: hold}
+    - {name: Major incident, source: incident_io, severity: [Critical, Major], action: hold}
     - {name: Payments,       source: incident_io, name_matches: "payment|checkout", action: halt}
-notify:
-  incident_io: {alert_source_config_id: 01HXYZ...}   # raise an alert when the bot halts by itself
 ```
 
-- **Signal:** incidents in *Triage* or *Active*, matched by severity name and/or a regex on the
-  incident name. Test and tutorial incidents are ignored. Secret: `INCIDENT_IO_API_KEY` (an API
-  key that can view incidents).
-- **Alerting:** on an automatic halt the bot fires an alert on an incident.io **HTTP alert
-  source** (Alerts → Sources → HTTP), so your normal routing and on-call apply. One alert per
-  release (de-duplicated). Secret: `INCIDENT_IO_ALERT_TOKEN` (the source's token); the source's ID
-  goes in `alert_source_config_id`.
+Matches incidents in *Triage* or *Active* by severity name and/or a regex on the incident name;
+test and tutorial incidents are ignored. Secret: `INCIDENT_IO_API_KEY` (a key that can view
+incidents).
 
 ## Mock mode and real side effects
 

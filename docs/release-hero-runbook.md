@@ -1,6 +1,7 @@
 # Release hero runbook
 
-You're on duty this week if you're in `@android-release-hero`. You don't need to know the app's
+You're on duty this week if you're in `@android-release-hero`, or on call for the release hero
+schedule in incident.io if your team uses that. You don't need to know the app's
 code; you need about 10 minutes on Thursday and to react if Slack pings you.
 
 ## Thursday (release day)
