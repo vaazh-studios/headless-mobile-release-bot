@@ -27,7 +27,7 @@ from release_bot.gate import Finding, Level
 from release_bot.policy import PolicyError, parse_percent
 
 ACTIONS = {"halt": Level.HALT, "hold": Level.HOLD, "notify": Level.NOTIFY}
-SOURCES = ("play_vitals", "crashlytics", "grafana", "datadog", "sentry", "http", "pagerduty", "amplitude")
+SOURCES = ("play_vitals", "crashlytics", "grafana", "datadog", "sentry", "http", "pagerduty", "amplitude", "incident_io")
 # Sources that yield numbers per version (compared with thresholds / the previous version).
 METRIC_SOURCES = ("play_vitals", "sentry", "http", "amplitude")
 SENTRY_METRICS = {"crash_free_sessions": "crash-free sessions", "crash_free_users": "crash-free users"}
@@ -71,7 +71,8 @@ class Rule:
     monitor: str | None = None              # regex on Datadog monitor name
     urgency: tuple[str, ...] = ()           # PagerDuty: high / low
     service: str | None = None              # PagerDuty: regex on service name
-    title: str | None = None                # PagerDuty: regex on incident title
+    title: str | None = None                # PagerDuty / incident.io: regex on incident title
+    severities: tuple[str, ...] = ()        # incident.io: severity names (empty = any)
 
     @property
     def level(self) -> Level:
@@ -132,6 +133,12 @@ def parse_rule(raw: dict, i: int) -> Rule:
         for rx in (rule.service, rule.title):
             if rx:
                 re.compile(rx)
+    elif source == "incident_io":
+        sev = raw.get("severity", [])
+        rule.severities = tuple(x.lower() for x in ([sev] if isinstance(sev, str) else sev))
+        rule.title = raw.get("name_matches") or raw.get("title")
+        if rule.title:
+            re.compile(rule.title)
     else:  # grafana
         sev = raw.get("severity")
         if not sev:
@@ -212,6 +219,8 @@ def evaluate(norm: dict, signals: dict) -> list[Finding]:
             findings += _eval_metrics(source, rules, data, min_users)
         elif source == "pagerduty":
             findings += _eval_pagerduty(rules, data)
+        elif source == "incident_io":
+            findings += _eval_incident_io(rules, data)
         elif source == "crashlytics":
             findings += _eval_crashlytics(rules, data)
         elif source == "grafana":
@@ -355,6 +364,9 @@ DEFAULT_RULES = {
     "pagerduty": [
         {"name": "Open high-urgency incident", "source": "pagerduty", "urgency": "high", "action": "hold"},
     ],
+    "incident_io": [
+        {"name": "Open incident", "source": "incident_io", "action": "hold"},
+    ],
 }
 
 
@@ -378,4 +390,18 @@ def _eval_pagerduty(rules: list[Rule], data: dict) -> list[Finding]:
             rule = max(matched, key=lambda r: r.level)
             findings.append(Finding(src, rule.level,
                                     f"open {inc.get('urgency', '')} incident on {inc.get('service', '?')}: {inc.get('title', '')}"))
+    return findings or [Finding(src, Level.OK, "no matching open incidents")]
+
+
+def _eval_incident_io(rules: list[Rule], data: dict) -> list[Finding]:
+    src = "incident.io"
+    findings = []
+    for inc in data.get("incidents", []):
+        matched = [r for r in rules
+                   if (not r.severities or inc.get("severity", "").lower() in r.severities)
+                   and (not r.title or re.search(r.title, inc.get("name", ""), re.I))]
+        if matched:
+            rule = max(matched, key=lambda r: r.level)
+            sev = f"{inc['severity']} " if inc.get("severity") else ""
+            findings.append(Finding(src, rule.level, f"{sev}incident ({inc.get('status')}): {inc.get('name', '')}"))
     return findings or [Finding(src, Level.OK, "no matching open incidents")]

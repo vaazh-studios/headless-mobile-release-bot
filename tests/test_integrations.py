@@ -298,3 +298,72 @@ def test_internal_track_releases_without_user_fraction(track, staged, monkeypatc
     release = svc.e.track_body["releases"][0]
     assert ("userFraction" in release) == staged
     assert release["status"] == ("inProgress" if staged else "completed")
+
+
+# ---------- incident.io ----------
+
+from release_bot.incident_io import IncidentIO, alert  # noqa: E402
+
+
+class IncHttp:
+    def __init__(self):
+        self.calls = []
+    def get(self, url, params, timeout, headers):
+        self.calls.append((url, dict(params), headers))
+        if "after" not in params:
+            return Resp({"incidents": [
+                {"name": "Checkout errors spiking", "severity": {"name": "Major", "rank": 2},
+                 "incident_status": {"category": "live"}, "permalink": "https://app.incident.io/incidents/1"},
+                {"name": "Old outage", "severity": {"name": "Critical", "rank": 1},
+                 "incident_status": {"category": "closed"}}],
+                "pagination_meta": {"after": "01ABC"}})
+        return Resp({"incidents": [
+            {"name": "Feed slow", "severity": {"name": "Minor", "rank": 3}, "incident_status": {"category": "triage"}}],
+            "pagination_meta": {}})
+
+
+def test_incident_io_open_incidents_and_rules():
+    http = IncHttp()
+    incidents = IncidentIO("key", session=http).open_incidents()
+    assert [i["name"] for i in incidents] == ["Checkout errors spiking", "Feed slow"]    # closed one dropped
+    assert http.calls[0][2] == {"Authorization": "Bearer key"} and http.calls[1][1]["after"] == "01ABC"
+    n = rules.normalize({"sources": {"incident_io": {}}, "rules": [
+        {"name": "Major+", "source": "incident_io", "severity": ["Critical", "Major"], "action": "halt"},
+        {"name": "Any", "source": "incident_io", "action": "notify"}]})
+    f = rules.evaluate(n, {"incident_io": {"incidents": incidents}})
+    assert Verdict(f).level == Level.HALT
+    assert any(x.level == Level.NOTIFY and "Feed slow" in x.message for x in f)
+
+
+def test_incident_io_alert_payload():
+    class H:
+        def post(self, url, json, headers, timeout):
+            self.url, self.body, self.headers = url, json, headers
+            return Resp({}, 202)
+    h = H()
+    alert("01SRC", "tok", "Shop Android 2.0.0 halted", "details", "release-bot-shop", session=h)
+    assert h.url == "https://api.incident.io/v2/alert_events/http/01SRC"
+    assert h.body["status"] == "firing" and h.body["deduplication_key"] == "release-bot-shop"
+    assert h.headers == {"Authorization": "Bearer tok"}
+
+
+def test_mock_mode_halt_actions_stay_dry(tmp_path, monkeypatch):
+    """A sandbox halt must never flip real Optimizely flags unless MOCK_LIVE_ACTIONS=true."""
+    import json
+    from pathlib import Path
+    from release_bot import cli
+    flipped = []
+    monkeypatch.setattr(notify.Optimizely, "set_flags",
+                        lambda self, flags, enabled: (flipped.append(self.dry_run) or flags))
+    cfg_path = tmp_path / "release-bot.yml"
+    base = Path(__file__).resolve().parent / "release-bot.test.yml"
+    cfg_path.write_text(base.read_text() + "\non_halt:\n  optimizely: {project_id: 1, environment: production, flags: [f1]}\n")
+    for k, v in {"RELEASE_BOT_MOCK": "true", "MOCK_STATE_FILE": str(tmp_path / "s.json"), "MOCK_REVIEW_MINUTES": "0",
+                 "OPTIMIZELY_TOKEN": "t"}.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.delenv("MOCK_LIVE_ACTIONS", raising=False)
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    run = lambda *a: cli.main(["--config", str(cfg_path), *a])
+    run("submit", "--aab", "x", "--version", "4.12.0")
+    run("halt", "--reason", "test")
+    assert flipped == [True]                     # dry run

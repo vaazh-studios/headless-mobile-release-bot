@@ -109,9 +109,11 @@ def test_no_slack_token_is_a_warning_not_a_failure():
 
 def test_mock_mode_skips_store_checks():
     f = factory()
-    f.env = {"RELEASE_BOT_MOCK": "true", "SLACK_BOT_TOKEN": "x", "MOCK_ON_DUTY": "me"}
+    f.env = {"RELEASE_BOT_MOCK": "true", "SLACK_BOT_TOKEN": "x", "MOCK_ON_DUTY": "me",
+             "GRAFANA_URL": "https://g", "GRAFANA_TOKEN": "t"}
     checks = by_name(doctor.run(CFG, f))
-    assert "simulated" in checks["store + health sources"].detail and "Play publishing" not in checks
+    assert "simulated" in checks["store"].detail and "Play publishing" not in checks
+    assert checks["Grafana"].status == doctor.OK          # third-party integrations still checked for real
 
 
 def test_cli_doctor_exit_code(capsys):

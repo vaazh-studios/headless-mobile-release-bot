@@ -124,6 +124,21 @@ def on_halt(cfg: dict, summary: str, dedup_key: str, dry_run: bool, automatic: b
                 lines.append("📟 Paged on-call via PagerDuty")
             except Exception as e:  # noqa: BLE001 — a paging failure mustn't undo the halt
                 lines.append(f"⚠️ PagerDuty page failed: {e}")
+    inc = (cfg.get("notify") or {}).get("incident_io")
+    if inc and automatic:
+        token = env.get("INCIDENT_IO_ALERT_TOKEN")
+        if not token or not inc.get("alert_source_config_id"):
+            lines.append("⚠️ incident.io alerting is configured but INCIDENT_IO_ALERT_TOKEN or "
+                         "alert_source_config_id is missing")
+        elif dry_run:
+            lines.append("📟 (dry run) would raise an incident.io alert")
+        else:
+            from release_bot.incident_io import alert
+            try:
+                alert(inc["alert_source_config_id"], token, summary, summary, dedup_key)
+                lines.append("📟 Raised an incident.io alert")
+            except Exception as e:  # noqa: BLE001
+                lines.append(f"⚠️ incident.io alert failed: {e}")
     opt = (cfg.get("on_halt") or {}).get("optimizely")
     if opt and opt.get("flags"):
         token = env.get("OPTIMIZELY_TOKEN")

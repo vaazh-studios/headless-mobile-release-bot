@@ -47,6 +47,7 @@ class Deps:
     sentry: object = None
     pagerduty: object = None
     amplitude: object = None
+    incident_io: object = None
     appstore: object = None              # iOS: App Store Connect client
     store: object = None                 # mock mode: state to persist after the command
     on_duty_logins: set | None = None    # mock mode: stand-in for @android-release-hero
@@ -143,6 +144,9 @@ def _add_optional_sources(deps: Deps, sources: dict) -> None:
     if "pagerduty" in sources:
         from release_bot.pagerduty import PagerDuty
         deps.pagerduty = PagerDuty(os.environ.get("PAGERDUTY_API_TOKEN", ""), sources["pagerduty"].get("service_ids", []))
+    if "incident_io" in sources:
+        from release_bot.incident_io import IncidentIO
+        deps.incident_io = IncidentIO(os.environ.get("INCIDENT_IO_API_KEY", ""))
     if "amplitude" in sources:
         from release_bot.amplitude import Amplitude
         deps.amplitude = Amplitude(sources["amplitude"], os.environ.get("AMPLITUDE_API_KEY", ""),
@@ -216,6 +220,8 @@ def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios
         fetch("sentry", lambda: deps.sentry.metrics(ctx))
     if deps.amplitude and "amplitude" in wanted and ctx.get("version"):
         fetch("amplitude", lambda: deps.amplitude.metrics(ctx))
+    if deps.incident_io and "incident_io" in wanted:
+        fetch("incident_io", lambda: {"incidents": deps.incident_io.open_incidents()})
     if deps.pagerduty and "pagerduty" in wanted:
         fetch("pagerduty", lambda: {"incidents": deps.pagerduty.open_incidents()})
     return Verdict(rules.evaluate(norm, signals))
@@ -272,6 +278,8 @@ def _halt_effects(deps: Deps, version: str, summary: str, automatic: bool) -> No
     from release_bot import notify
     client = deps.play if deps.play is not None else deps.appstore
     dry = shadow_mode(deps.cfg) or bool(getattr(client, "dry_run", False))
+    if deps.store is not None and os.environ.get("MOCK_LIVE_ACTIONS", "").lower() != "true":
+        dry = True  # mock mode never flips real flags or pages people, unless explicitly allowed
     dedup = f"release-bot-{deps.cfg.get('app_id', 'app')}-{deps.cfg.get('platform', 'android')}-{version}"
     lines = notify.on_halt(deps.cfg, f"{_name(deps)} {version}: {summary}", dedup, dry, automatic)
     if lines:

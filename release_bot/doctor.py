@@ -35,6 +35,7 @@ class Factory:
     http: object = None              # (source_cfg) -> object with metrics(ctx)
     pagerduty: object = None         # (token, service_ids) -> object with open_incidents()
     sentry: object = None            # (source_cfg, token) -> object with metrics(ctx)
+    incident_io: object = None       # (api_key) -> object with open_incidents()
     slack_call: object = None        # (method, **params) -> dict (Slack Web API response)
     env: dict = field(default_factory=lambda: dict(os.environ))
 
@@ -98,10 +99,11 @@ def run(cfg: dict, factory: Factory) -> list[Check]:
                             "Add a source and rules (iOS: Crashlytics, Grafana or Datadog; Play Vitals is Android only). "
                             "See docs/configuration.md."))
     if mock:
-        checks.append(Check(OK, "store + health sources", "mock mode: the store, Play Vitals, Crashlytics, Grafana and Datadog are simulated"))
-    else:
-        if not ios:
-            checks += _google_checks(cfg, norm, factory)
+        checks.append(Check(OK, "store", "mock mode: Google Play / App Store, Play Vitals and Crashlytics are "
+                            "simulated; other configured integrations are checked for real below"))
+    elif not ios:
+        checks += _google_checks(cfg, norm, factory)
+    if True:  # third-party integrations: always checked for real
         if "grafana" in norm["sources"]:
             checks.append(_grafana_check(norm, factory))
         if "datadog" in norm["sources"]:
@@ -112,6 +114,8 @@ def run(cfg: dict, factory: Factory) -> list[Check]:
             checks.append(_pagerduty_check(norm, factory))
         if "sentry" in norm["sources"]:
             checks.append(_sentry_check(cfg, norm, factory))
+        if "incident_io" in norm["sources"]:
+            checks.append(_incident_io_check(factory))
         if "amplitude" in norm["sources"]:
             ok = bool(factory.env.get("AMPLITUDE_API_KEY") and factory.env.get("AMPLITUDE_SECRET_KEY"))
             funnels = ", ".join((norm["sources"]["amplitude"].get("funnels") or {}).keys()) or "none"
@@ -268,6 +272,19 @@ def _sentry_check(cfg: dict, norm: dict, f: Factory) -> Check:
                 "Check org, project (numeric id), the token's scopes, and `url` for EU orgs (https://de.sentry.io)."))
 
 
+def _incident_io_check(f: Factory) -> Check:
+    key = f.env.get("INCIDENT_IO_API_KEY")
+    if not key:
+        return Check(FAIL, "incident.io", "INCIDENT_IO_API_KEY is not set",
+                     "incident.io → Settings → API keys → create a key that can view incidents; store it as "
+                     "INCIDENT_IO_API_KEY.")
+    def inc():
+        n = len(f.incident_io(key).open_incidents())
+        return Check(OK, "incident.io", f"readable · {n} open incident(s) right now")
+    return _try("incident.io", inc, lambda s, e: (f"HTTP {s or '?'} ({e})",
+                "Check the API key and that it may view incidents (Settings → API keys)."))
+
+
 def _notify_checks(cfg: dict, env: dict) -> list[Check]:
     out = []
     n = cfg.get("notify") or {}
@@ -278,6 +295,18 @@ def _notify_checks(cfg: dict, env: dict) -> list[Check]:
                          "routing key set" if env.get("PAGERDUTY_ROUTING_KEY") else "PAGERDUTY_ROUTING_KEY is not set",
                          "" if env.get("PAGERDUTY_ROUTING_KEY") else "Add an Events API v2 integration to a service and "
                          "store its integration key as PAGERDUTY_ROUTING_KEY."))
+    inc = n.get("incident_io")
+    if inc:
+        ok = bool(env.get("INCIDENT_IO_ALERT_TOKEN") and inc.get("alert_source_config_id"))
+        out.append(Check(OK if ok else FAIL, "incident.io alerts",
+                         f"alert source {inc.get('alert_source_config_id')}" if ok else
+                         "INCIDENT_IO_ALERT_TOKEN or alert_source_config_id is missing",
+                         "" if ok else "incident.io → Alerts → Sources → add an HTTP source; put its ID in "
+                         "notify.incident_io.alert_source_config_id and its token in INCIDENT_IO_ALERT_TOKEN."))
+    if env.get("RELEASE_BOT_MOCK", "").lower() == "true" and env.get("MOCK_LIVE_ACTIONS", "").lower() != "true":
+        if inc or n.get("pagerduty") or (cfg.get("on_halt") or {}).get("optimizely"):
+            out.append(Check(OK, "mock mode safety", "halt actions (paging, flag kill switch) run as dry runs; "
+                             "set MOCK_LIVE_ACTIONS=true to test them for real"))
     opt = (cfg.get("on_halt") or {}).get("optimizely")
     if opt:
         ok = bool(env.get("OPTIMIZELY_TOKEN"))
@@ -389,6 +418,10 @@ def default_factory() -> Factory:
         from release_bot.sentry import Sentry
         return Sentry(src, token)
 
+    def incident_io(key):
+        from release_bot.incident_io import IncidentIO
+        return IncidentIO(key)
+
     def slack_call(method, **params):
         import requests
         resp = requests.get(f"https://slack.com/api/{method}", params=params, timeout=30,
@@ -396,7 +429,7 @@ def default_factory() -> Factory:
         return resp.json()
 
     return Factory(google_identity, play, vitals, bigquery_table, grafana, slack_call=slack_call, datadog=datadog,
-                   http=http, pagerduty=pagerduty, sentry=sentry)
+                   http=http, pagerduty=pagerduty, sentry=sentry, incident_io=incident_io)
 
 
 def render(app_label: str, checks: list[Check]) -> str:
