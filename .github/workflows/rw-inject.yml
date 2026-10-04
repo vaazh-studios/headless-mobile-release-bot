@@ -67,6 +67,10 @@ on:
         required: false
       AMPLITUDE_SECRET_KEY:
         required: false
+      INCIDENT_IO_API_KEY:
+        required: false
+      INCIDENT_IO_ALERT_TOKEN:
+        required: false
 
 env:
   PYTHONPATH: ${{ github.workspace }}/.release-bot
@@ -74,6 +78,7 @@ env:
   RELEASE_BOT_MODE: ${{ vars.RELEASE_BOT_MODE }}
   # Sandbox switches (unset in production).
   RELEASE_BOT_MOCK: ${{ vars.RELEASE_BOT_MOCK }}
+  MOCK_LIVE_ACTIONS: ${{ vars.MOCK_LIVE_ACTIONS }}
   MOCK_ON_DUTY: ${{ vars.MOCK_ON_DUTY }}
   SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
   SLACK_ANNOUNCE_CHANNEL_ID: ${{ vars.SLACK_ANNOUNCE_CHANNEL_ID }}
@@ -117,6 +122,8 @@ jobs:
       RELEASE_BOT_HTTP_ENV: ${{ secrets.RELEASE_BOT_HTTP_ENV }}
       AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
       AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
+      INCIDENT_IO_API_KEY: ${{ secrets.INCIDENT_IO_API_KEY }}
+      INCIDENT_IO_ALERT_TOKEN: ${{ secrets.INCIDENT_IO_ALERT_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
