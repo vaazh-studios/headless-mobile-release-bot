@@ -13,6 +13,7 @@
   app-info          resolve one app + tag into workflow outputs
   plan              each app's rollout timeline (Android/iOS) and health rules
   validate          fail if any schedule or health rule is invalid (CI)
+  doctor            check every permission/connection an app needs, with fixes
 
 Every command takes --app <id> when release-bot.yml defines several apps.
 """
@@ -29,7 +30,7 @@ from release_bot import config as config_mod
 from release_bot import gate, policy, rules, schedule, tags
 from release_bot.gate import Finding, Level, Verdict
 from release_bot.play import Play, TrackState
-from release_bot.slack import Slack
+from release_bot.slack import ShadowSlack, Slack
 
 
 @dataclass
@@ -49,14 +50,28 @@ def mock_mode() -> bool:
     return os.environ.get("RELEASE_BOT_MOCK", "").lower() == "true"
 
 
+def shadow_mode(cfg: dict) -> bool:
+    """Shadow: read everything, decide everything, change nothing on the store,
+    and post what it would have done. Repo variable RELEASE_BOT_MODE or `mode:`."""
+    mode = os.environ.get("RELEASE_BOT_MODE") or cfg.get("mode", "live")
+    if mode not in ("live", "shadow"):
+        raise config_mod.ConfigError("mode must be 'live' or 'shadow'")
+    return mode == "shadow"
+
+
+def _slack_for(cfg: dict, dry_run: bool):
+    slack = Slack(os.environ.get("SLACK_BOT_TOKEN"), cfg["slack"]["channel_id"], dry_run=dry_run)
+    return ShadowSlack(slack) if shadow_mode(cfg) and not dry_run else slack
+
+
 def build_mock_deps(cfg: dict, dry_run: bool) -> Deps:
     from release_bot import mock
     store = mock.MockStore(app_id=cfg.get("app_id", "app"))
     cfg = {**cfg, "_mock": True}
     return Deps(
         cfg=cfg,
-        play=mock.MockPlay(store, dry_run),
-        slack=Slack(os.environ.get("SLACK_BOT_TOKEN"), cfg["slack"]["channel_id"], dry_run=dry_run),
+        play=mock.MockPlay(store, dry_run or shadow_mode(cfg)),
+        slack=_slack_for(cfg, dry_run),
         # The demo always shows every source, whatever release-bot.yml enables.
         vitals=mock.MockVitals(store),
         crashlytics=mock.MockCrashlytics(store),
@@ -72,9 +87,10 @@ def build_deps(cfg: dict, dry_run: bool, health: bool) -> Deps:
     p = cfg["play"]
     deps = Deps(
         cfg=cfg,
-        play=Play(cfg["package_name"], p["track"], p.get("changes_not_sent_for_review", False), dry_run),
-        # Dry runs print Slack messages instead of posting them.
-        slack=Slack(os.environ.get("SLACK_BOT_TOKEN"), cfg["slack"]["channel_id"], dry_run=dry_run),
+        play=Play(cfg["package_name"], p["track"], p.get("changes_not_sent_for_review", False),
+                  dry_run or shadow_mode(cfg)),
+        # Dry runs print Slack messages instead of posting them; shadow runs label them.
+        slack=_slack_for(cfg, dry_run),
     )
     if not health:
         return deps
@@ -138,6 +154,35 @@ def _key(deps: Deps, version: str) -> str:
     return version if app_id == config_mod.LEGACY_APP_ID else f"{app_id} {version}"
 
 
+def _links(deps: Deps) -> str:
+    """Slack links to this run and to the Halt / Resume workflows (when run in Actions)."""
+    server, repo, run = (os.environ.get(k) for k in ("GITHUB_SERVER_URL", "GITHUB_REPOSITORY", "GITHUB_RUN_ID"))
+    if not (server and repo and run):
+        return ""
+    links = deps.cfg.get("links", {}) or {}
+    wf = f"{server}/{repo}/actions/workflows"
+    return (f"\n<{server}/{repo}/actions/runs/{run}|View run> · "
+            f"<{wf}/{links.get('halt_workflow', 'android-halt.yml')}|Halt> · "
+            f"<{wf}/{links.get('resume_workflow', 'android-resume.yml')}|Resume>")
+
+
+def _summary(deps: Deps, title: str, verdict: Verdict | None = None, extra: str = "") -> None:
+    """Append a short report to the GitHub Actions job summary."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    lines = [f"### {_name(deps)} · {title}"]
+    if shadow_mode(deps.cfg):
+        lines.append("_Shadow mode: nothing was changed on the store._")
+    if extra:
+        lines.append(extra)
+    if verdict is not None:
+        lines.append("")
+        lines += [f"- {gate.ICONS[f.level]} `{f.source}` {f.message}" for f in verdict.findings] or ["- no signals"]
+    with open(path, "a") as fh:
+        fh.write("\n".join(lines) + "\n\n")
+
+
 def _mention(cfg: dict) -> str:
     group = cfg["slack"].get("hero_usergroup_id")
     return f"<!subteam^{group}> " if group else ""
@@ -195,7 +240,8 @@ def cmd_submit(deps: Deps, args) -> int:
     notes = (args.notes or "").strip() or p["default_release_notes"]
     fraction = rollout_policy(deps.cfg).android.initial
     code = deps.play.upload_and_start(args.aab, args.version, fraction, notes, p["release_notes_language"])
-    root = (f"🚀 {_name(deps)} *{args.version}* (versionCode {code}) submitted to Play review. "
+    code_txt = f" (versionCode {code})" if code and code > 0 else ""
+    root = (f"🚀 {_name(deps)} *{args.version}*{code_txt} submitted to Play review. "
             f"Rollout starts at {_p(fraction)} once Google approves.")
     if args.release_url:
         root += f"\nRelease notes: {args.release_url}"
@@ -214,6 +260,8 @@ def cmd_check(deps: Deps, args) -> int:
     version = live.get("name", "?")
     verdict = collect_health(deps, TrackState.version_code(live), TrackState.version_code(state.completed))
     print(verdict.scorecard())
+    _summary(deps, f"health check · {version} at {_p(live.get('userFraction', 0))}", verdict,
+             f"**{verdict.level.name}**" + (f" · triggered by {args.trigger}" if args.trigger else ""))
     trigger = f"\nTriggered by: {args.trigger}" if args.trigger else ""
     key = _key(deps, version)
 
@@ -221,7 +269,7 @@ def cmd_check(deps: Deps, args) -> int:
         deps.play.halt()
         pct = _p(live.get("userFraction", 0))
         deps.slack.post(key, f"🛑 {_mention(deps.cfg)}*Rollout HALTED* at {pct}.{trigger}\n{verdict.scorecard()}\n"
-                             "Fix forward with a new build, or run *Android · Resume* if this was a false alarm.")
+                             "Fix forward with a new build, or run *Android · Resume* if this was a false alarm." + _links(deps))
         _alert(deps, f"🛑 {_name(deps)} {version} rollout auto-halted at {pct}.{trigger}\n{verdict.scorecard()}")
         _announce(deps, f"🛑 {_name(deps)} *{version}* rollout halted at {pct} while we investigate.")
     elif verdict.level in (Level.HOLD, Level.NOTIFY):
@@ -230,7 +278,7 @@ def cmd_check(deps: Deps, args) -> int:
             print("Same message already posted; staying quiet.")
             return 0
         if verdict.level == Level.HOLD:
-            deps.slack.post(key, f"⚠️ Health needs a human look.{trigger}\n{verdict.scorecard()}")
+            deps.slack.post(key, f"⚠️ Health needs a human look.{trigger}\n{verdict.scorecard()}{_links(deps)}")
             _alert(deps, f"⚠️ {_mention(deps.cfg)}{_name(deps)} {version} health needs a look.{trigger}\n{verdict.scorecard()}")
         else:
             deps.slack.post(key, f"🔔 FYI, still rolling out.{trigger}\n{verdict.scorecard()}")
@@ -279,22 +327,25 @@ def cmd_advance(deps: Deps, args) -> int:
     nxt = sched.next_fraction(current, target)
     if nxt is None:
         print(f"At {_p(current)}; nothing due today (schedule: {sched.summary()}).")
+        _summary(deps, f"rollout step · {version}", extra=f"At **{_p(current)}**; nothing due today ({sched.summary()}).")
         return 0
 
     verdict = collect_health(deps, TrackState.version_code(live), TrackState.version_code(state.completed))
     print(verdict.scorecard())
+    _summary(deps, f"rollout step · {version}", verdict,
+             f"At **{_p(current)}**, next step **{_p(nxt)}** · health **{verdict.level.name}**")
     thin_blocks = verdict.level == Level.NOT_ENOUGH_DATA and plan.when_data_is_thin == "hold"
     if verdict.level == Level.HALT:
         deps.play.halt()
-        deps.slack.post(key, f"🛑 {_mention(cfg)}*Rollout HALTED* instead of moving to {_p(nxt)}.\n{verdict.scorecard()}")
+        deps.slack.post(key, f"🛑 {_mention(cfg)}*Rollout HALTED* instead of moving to {_p(nxt)}.\n{verdict.scorecard()}{_links(deps)}")
         _alert(deps, f"🛑 {_name(deps)} {version} rollout auto-halted at {_p(current)}.\n{verdict.scorecard()}")
         _announce(deps, f"🛑 {_name(deps)} *{version}* rollout halted at {_p(current)} while we investigate.")
     elif verdict.level == Level.HOLD or thin_blocks:
-        deps.slack.post(key, f"⏸ {_mention(cfg)}Holding at {_p(current)} (planned {_p(nxt)}).\n{verdict.scorecard()}")
+        deps.slack.post(key, f"⏸ {_mention(cfg)}Holding at {_p(current)} (planned {_p(nxt)}).\n{verdict.scorecard()}{_links(deps)}")
     else:
         deps.play.set_fraction(nxt)
         label = "100% — fully released 🎉" if nxt >= 1.0 else _p(nxt)
-        deps.slack.post(key, f"⬆️ Rollout {_p(current)} → {label}\n{verdict.scorecard()}")
+        deps.slack.post(key, f"⬆️ Rollout {_p(current)} → {label}\n{verdict.scorecard()}{_links(deps)}")
         if verdict.level == Level.NOTIFY:
             _alert(deps, f"🔔 {_name(deps)} {version} moved to {_p(nxt)}; FYI:\n{verdict.scorecard()}")
         if nxt >= 1.0:
@@ -420,7 +471,7 @@ NEEDS_HEALTH = {"check", "advance", "vitals"}
 
 def parse_args(argv):
     ap = argparse.ArgumentParser(prog="release_bot")
-    ap.add_argument("--config", default=str(config_mod.DEFAULT_PATH))
+    ap.add_argument("--config", default=os.environ.get("RELEASE_BOT_CONFIG") or str(config_mod.DEFAULT_PATH))
     ap.add_argument("--dry-run", action="store_true", help="read everything, change nothing on Play")
     ap.add_argument("--app", default=None, help="app id from release-bot.yml (needed when several apps are configured)")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -443,6 +494,7 @@ def parse_args(argv):
     sub.add_parser("apps")
     sub.add_parser("plan")
     sub.add_parser("validate")
+    sub.add_parser("doctor")
     sub.add_parser("app-info").add_argument("--tag", default="")
     return ap.parse_args(argv)
 
@@ -508,6 +560,24 @@ def cmd_validate(raw: dict, app: str | None) -> int:
     return 1 if failed else 0
 
 
+def cmd_doctor(raw: dict, app: str | None, factory=None) -> int:
+    """Check permissions and connections for one app (or every app)."""
+    from release_bot import doctor
+    factory = factory or doctor.default_factory()
+    ids = [app] if app else config_mod.app_ids(raw)
+    failed = False
+    for app_id in ids:
+        cfg = config_mod.resolve(raw, app_id)
+        checks = doctor.run(cfg, factory)
+        report = doctor.render(f"{cfg['display_name']} ({app_id}) · {cfg['environment']}", checks)
+        print(report)
+        if os.environ.get("GITHUB_STEP_SUMMARY"):
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+                fh.write("```\n" + report + "\n```\n")
+        failed |= any(c.status == doctor.FAIL for c in checks)
+    return 1 if failed else 0
+
+
 def cmd_apps(raw: dict) -> int:
     """JSON matrix of every app: [{"app", "environment", "account"}]."""
     rows = []
@@ -524,6 +594,8 @@ def main(argv=None, deps: Deps | None = None) -> int:
         raw = config_mod.load(args.config)
         if args.command == "apps":
             return cmd_apps(raw)
+        if args.command == "doctor":
+            return cmd_doctor(raw, args.app)
         if args.command in ("plan", "validate"):
             return (cmd_plan if args.command == "plan" else cmd_validate)(raw, args.app)
         try:

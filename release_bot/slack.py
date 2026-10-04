@@ -84,3 +84,38 @@ class Slack:
         if not data.get("ok"):
             raise RuntimeError(f"Slack {method} failed: {data.get('error')}")
         return data
+
+
+class ShadowSlack:
+    """Shadow mode: same messages, clearly labelled, in a separate thread, and
+    never repeated (the bot re-decides every run while humans drive the release)."""
+
+    PREFIX = "🫥 *Shadow mode*, nothing was changed on Play. The bot *would have*:\n"
+
+    def __init__(self, inner):
+        self.inner = inner
+        self._last_skipped = False
+
+    @staticmethod
+    def _key(key: str) -> str:
+        return f"{key} (shadow)"
+
+    def post(self, key: str, text: str, root_text: str | None = None) -> None:
+        if self.inner.thread_contains(self._key(key), text):
+            self._last_skipped = True
+            print(f"[shadow] already posted, staying quiet: {text.splitlines()[0]}")
+            return
+        self._last_skipped = False
+        root = f"🫥 Shadow run · {root_text or key}"
+        self.inner.post(self._key(key), self.PREFIX + text, root_text=root)
+
+    def announce(self, channel: str | None, text: str) -> None:
+        if self._last_skipped:
+            return  # the thread message it belongs to was a repeat
+        self.inner.announce(channel, "🫥 Shadow mode (nothing changed): " + text)
+
+    def thread_contains(self, key: str, text: str) -> bool:
+        return self.inner.thread_contains(self._key(key), text)
+
+    def usergroup_members(self, usergroup_id: str) -> set[str]:
+        return self.inner.usergroup_members(usergroup_id)

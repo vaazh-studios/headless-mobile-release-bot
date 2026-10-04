@@ -15,10 +15,9 @@ runs:
     - uses: actions/setup-python@v7
       with:
         python-version: "3.12"
-        cache: pip
-        cache-dependency-path: release_bot/requirements.txt
     - shell: bash
-      run: pip install -r release_bot/requirements.txt
+      # Works both from this repo and from .release-bot/ inside a caller's workspace.
+      run: pip install -r "$GITHUB_ACTION_PATH/../../../release_bot/requirements.txt"
     - if: inputs.workload_identity_provider != ''
       uses: google-github-actions/auth@v3
       with:

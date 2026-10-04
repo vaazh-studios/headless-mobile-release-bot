@@ -217,8 +217,10 @@ def check(policy: RolloutPolicy, platforms: list[str]) -> tuple[list[str], list[
         # Approval usually lands within a day, so only weekday or day ≥ 2 starts are misleading.
         if first.on is not None and not (isinstance(first.on, int) and first.on <= 1):
             warnings.append(
-                f"Android: {_pct(first.fraction)} goes live as soon as Google approves the release. "
-                f"Play can't hold an approved release until {first.label()} yet, so expect it earlier.")
+                f"Android: {_pct(first.fraction)} goes live as soon as Google approves the release; the "
+                f"Play API can't hold it until {first.label()}. Options: turn on managed publishing and "
+                "click 'Publish changes' that day, submit on that day instead, or gate the feature with a "
+                "flag (docs/configuration.md).")
     if "ios" in platforms:
         if policy.ios is None:
             errors.append("iOS: no schedule. Add rollout.ios.schedule or use platforms: aligned")

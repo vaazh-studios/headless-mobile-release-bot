@@ -1,0 +1,112 @@
+# Reusable workflow (Release bot · Health check). Call it from your repo:
+#   jobs:
+#     x:
+#       uses: vaazh-studios/headless-mobile-release-bot/.github/workflows/rw-health.yml@main
+#       secrets: inherit
+name: "Release bot · Health check"
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "App id from release-bot.yml (empty if only one app is configured)"
+        type: string
+        default: ""
+      config:
+        description: "Path to release-bot.yml in the calling repo"
+        type: string
+        default: release-bot.yml
+      bot_repository:
+        description: "Where the bot's code lives"
+        type: string
+        default: vaazh-studios/headless-mobile-release-bot
+      bot_ref:
+        description: "Bot version to run (use the same ref as in `uses:`)"
+        type: string
+        default: main
+      dry_run:
+        description: "Check and report only; change nothing on the store"
+        type: boolean
+        default: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/.release-bot
+  RELEASE_BOT_CONFIG: ${{ inputs.config }}
+  RELEASE_BOT_MODE: ${{ vars.RELEASE_BOT_MODE }}
+  # Sandbox switches (unset in production).
+  RELEASE_BOT_MOCK: ${{ vars.RELEASE_BOT_MOCK }}
+  MOCK_ON_DUTY: ${{ vars.MOCK_ON_DUTY }}
+  SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
+  SLACK_ANNOUNCE_CHANNEL_ID: ${{ vars.SLACK_ANNOUNCE_CHANNEL_ID }}
+  SLACK_ALERTS_CHANNEL_ID: ${{ vars.SLACK_ALERTS_CHANNEL_ID }}
+  SLACK_HERO_USERGROUP_ID: ${{ vars.SLACK_HERO_USERGROUP_ID }}
+
+jobs:
+  plan:
+    name: Which apps
+    # Scheduled runs stay idle until the repo is configured (or in mock mode).
+    if: github.event_name != 'schedule' || vars.RELEASE_BOT_ENABLED == 'true' || vars.RELEASE_BOT_MOCK == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.bot_repository }}
+          ref: ${{ inputs.bot_ref }}
+          path: .release-bot
+      - uses: ./.release-bot/.github/actions/release-bot-setup
+      - id: apps
+        env:
+          ONLY: ${{ inputs.app || github.event.client_payload.app || '' }}
+        run: |
+          apps=$(python -m release_bot apps)
+          if [ -n "$ONLY" ]; then apps=$(echo "$apps" | jq -c --arg a "$ONLY" '[.[] | select(.app == $a)]'); fi
+          [ "$apps" != "[]" ] || { echo "::error::no app matches '$ONLY'"; exit 1; }
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+
+  run:
+    name: ${{ matrix.app }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.apps) }}
+    runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+    # One queue per app: a slow or halted app never blocks the others.
+    concurrency:
+      group: android-release-${{ matrix.app }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.bot_repository }}
+          ref: ${{ inputs.bot_ref }}
+          path: .release-bot
+      - uses: ./.release-bot/.github/actions/release-bot-setup
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - if: env.RELEASE_BOT_MOCK == 'true'
+        uses: ./.release-bot/.github/actions/mock-state
+        with:
+          mode: restore
+          app: ${{ matrix.app }}
+      - env:
+          APP: ${{ matrix.app }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          GRAFANA_URL: ${{ vars.GRAFANA_URL }}
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_REPO_TOKEN || github.token }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          # The webhook payload is only a label: the halt decision always uses real data.
+          TRIGGER: ${{ github.event_name == 'repository_dispatch' && format('Grafana alert {0}', github.event.client_payload.alertname) || '' }}
+        run: python -m release_bot --app "$APP" $DRY_RUN check --trigger "$TRIGGER"
+      - if: always() && env.RELEASE_BOT_MOCK == 'true'
+        uses: ./.release-bot/.github/actions/mock-state
+        with:
+          mode: save
+          app: ${{ matrix.app }}
