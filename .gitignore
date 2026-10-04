@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+sim/out/
+.mock-state/
+examples/android-app/.gradle/
+examples/android-app/build/
+examples/android-app/app/build/
+examples/android-app/local.properties
+.idea/
+*.iml
+.DS_Store
