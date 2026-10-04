@@ -6,6 +6,7 @@ on:
       - "release_bot/**"
       - "tests/**"
       - "release-bot.yml"
+      - ".github/actions/**"
       - ".github/workflows/android-*.yml"
 
 permissions:
@@ -17,5 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/release-bot-setup
+      - name: Action files parse (actionlint doesn't check them)
+        run: |
+          python - <<'PY'
+          import glob, yaml
+          for f in glob.glob(".github/actions/*/action.yml"):
+              d = yaml.safe_load(open(f))
+              for k, v in (d.get("outputs") or {}).items():
+                  assert isinstance(v, dict) and {"description", "value"} <= set(v), f"{f}: output {k}"
+          print("action files OK")
+          PY
       - run: python -m release_bot validate
       - run: pip install pytest && python -m pytest -q tests
