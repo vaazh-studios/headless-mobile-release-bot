@@ -20,15 +20,19 @@ gcloud iam workload-identity-pools providers create-oidc github-actions \
   --location=global --workload-identity-pool=github \
   --issuer-uri="https://token.actions.githubusercontent.com" \
   --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.environment=assertion.environment,attribute.ref=assertion.ref" \
-  --attribute-condition="assertion.repository=='ORG/REPO' && assertion.environment=='play-production' && assertion.ref=='refs/heads/main'"
+  --attribute-condition="assertion.repository=='ORG/REPO' && assertion.environment.startsWith('play-') && assertion.ref=='refs/heads/main'"
 
 gcloud iam service-accounts create android-release-bot
 
 gcloud iam service-accounts add-iam-policy-binding \
   android-release-bot@PROJECT_ID.iam.gserviceaccount.com \
   --role=roles/iam.workloadIdentityUser \
-  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/ORG/REPO"
+  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.environment/play-production"
 ```
+
+The binding is per **environment**: only jobs running in `play-production` can act as this service
+account. With several Play developer accounts, repeat the service-account steps once per account
+and bind each one to its own environment (see [multi-app.md](multi-app.md)).
 
 **Crashlytics (BigQuery):** in the Firebase project, give the service account `roles/bigquery.dataViewer` on the `firebase_crashlytics` dataset and `roles/bigquery.jobUser` on the project.
 
@@ -69,10 +73,10 @@ Also turn **off Managed publishing**, or approved changes will wait for a manual
 | | secret `GRAFANA_TOKEN` | Grafana service account token |
 | Environment **`android-signing`** (deployment branches: `main`) | secret `ANDROID_UPLOAD_KEYSTORE_BASE64` | `base64 -i upload.jks` |
 | | secrets `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` | |
-| Repo variables (optional) | `ANDROID_PROJECT_DIR` | `android` for React Native; default `.` |
-| | `ANDROID_BUNDLE_TASK` | default `:app:bundleRelease` (for example `:app:bundleProdRelease` with flavors) |
-| | `ANDROID_AAB_GLOB` | default `app/build/outputs/bundle/release/*.aab` |
-| | `ANDROID_JAVA_VERSION` | default `17` |
+| Repo variable | `RELEASE_BOT_ENABLED` | `true`: lets the scheduled rollout and health runs start (they stay idle until set) |
+
+Build settings (Gradle directory, bundle task, `.aab` location, JDK) live in `release-bot.yml`
+under each app's `build:`, not in repo variables.
 
 The keystore must be your Play App Signing **upload key**. Flutter: replace the Gradle step with `flutter build appbundle`.
 

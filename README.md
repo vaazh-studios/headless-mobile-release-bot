@@ -59,6 +59,7 @@ Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 | [How it works](docs/how-it-works.md) | Multi-day rollouts without a server, the health gate, what halts vs holds |
 | [Release hero runbook](docs/release-hero-runbook.md) | The weekly person: what to click, what Slack messages mean |
 | [Setup](docs/setup.md) | One-time production setup |
+| [Multiple apps & accounts](docs/multi-app.md) | Several apps across several Play developer accounts from one repo |
 | [Simulator](docs/simulator.md) | Replaying release weeks with mock data, writing scenarios |
 | [Security](SECURITY.md) | Credentials, permissions, who can release |
 | [Contributing](CONTRIBUTING.md) | Dev setup, adding a health source |
@@ -78,7 +79,7 @@ the Play jobs never see. Nothing listens for inbound traffic. Details: [SECURITY
 - [ ] Shadow mode: decide and post "would have…" without touching Play
 - [ ] Halt/Resume links in Slack messages and a GitHub job summary
 - [ ] Reusable workflows (`uses: vaazh-studios/headless-mobile-release-bot/...@v1`)
-- [ ] Multiple apps and multiple Play developer accounts from one repo
+- [x] Multiple apps and multiple Play developer accounts from one repo
 - [ ] iOS: App Store phased release (pause/resume) with the same health gate
 - [ ] More health sources: Sentry, Datadog, Bugsnag
 

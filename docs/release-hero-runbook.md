@@ -7,6 +7,7 @@ code; you need about 10 minutes on Thursday and to react if Slack pings you.
 
 1. **Smoke test** the release candidate from Firebase App Distribution (or wherever your CI puts it).
 2. GitHub → **Actions → Android · Submit to Play → Run workflow** (branch `main`):
+   - **app**: which app (only if your repo releases several), e.g. `shop`
    - **tag**: the tag CI created, e.g. `v4.12.0`
    - **What's new**: optional, max 500 characters; leave empty for the default text
 3. Check Slack: a new thread appears in the release channel and an announcement in the wider one.
@@ -42,4 +43,4 @@ Users who already have the new version keep it; nobody new gets it. Play has no 
 
 ## Stopping it yourself
 
-**Actions → Android · HALT rollout**, with a reason. Anyone can do this, any time. It's always safe.
+**Actions → Android · HALT rollout**, with the app and a reason. Anyone can do this, any time. It's always safe.
