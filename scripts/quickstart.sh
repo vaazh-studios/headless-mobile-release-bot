@@ -26,7 +26,7 @@ cat <<MSG
 
 Done. Next:
   1. Actions → "Sandbox · Create release tag" → 1.0.0, then again with 1.1.0
-  2. Actions → "Android · Submit to Play" → v1.1.0
+  2. Actions → "Release · Submit to the store" → v1.1.0
   3. After ~5 minutes: Actions → "Android · Rollout step" (each run = one step)
   4. Actions → "Sandbox · Inject incident" → new-crash  (watch it halt)
 

@@ -39,7 +39,7 @@ example app, the GitHub release notes and the Slack messages are all real.
 1. Click **Use this template** → create a public repo.
 2. Run `scripts/quickstart.sh` (needs the [GitHub CLI](https://cli.github.com)).
 3. **Actions → Sandbox · Create release tag** → `1.0.0`, then `1.1.0`.
-4. **Actions → Android · Submit to Play** → `v1.1.0`.
+4. **Actions → Release · Submit to the store** → `v1.1.0`.
 5. After ~5 min ("Google review"): **Android · Rollout step**. Each run moves one step.
 6. **Sandbox · Inject incident** → `new-crash` and watch it halt. `none` + **Android · Resume rollout** to recover.
 

@@ -7,7 +7,8 @@ code; you need about 10 minutes on Thursday and to react if Slack pings you.
 ## Thursday (release day)
 
 1. **Smoke test** the release candidate from Firebase App Distribution (or wherever your CI puts it).
-2. GitHub → **Actions → Android · Submit to Play → Run workflow** (branch `main`):
+2. GitHub → **Actions → Release · Submit to the store → Run workflow** (branch `main`):
+   - **platform**: `android` or `ios`
    - **app**: which app (only if your repo releases several), e.g. `shop`
    - **tag**: the tag CI created, e.g. `v4.12.0`
    - **What's new**: optional, max 500 characters; leave empty for the default text
@@ -37,7 +38,7 @@ Users who already have the new version keep it; nobody new gets it. Play has no 
 
 1. Read the 🛑 lines in the thread: which source and what it saw.
 2. Decide with the team:
-   - **Real problem** → fix forward: CI builds a new tag (e.g. `v4.12.1`) → **Submit to Play** with
+   - **Real problem** → fix forward: CI builds a new tag (e.g. `v4.12.1`) → **Release · Submit to the store** with
      that tag and **supersede unfinished rollout** checked.
    - **False alarm / unrelated** (e.g. a backend incident) → **Actions → Android · Resume rollout**
      with a reason. It continues from the same percentage; the schedule picks up from there.
