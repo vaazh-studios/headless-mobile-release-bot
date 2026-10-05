@@ -1,0 +1,16 @@
+{
+  "name": "vaazh-studios",
+  "owner": {
+    "name": "Vaazh Studios"
+  },
+  "plugins": [
+    {
+      "name": "release-bot",
+      "source": "./",
+      "description": "Set up, configure and troubleshoot Headless Mobile Release Bot."
+    }
+  ],
+  "metadata": {
+    "description": "Headless Mobile Release Bot: staged Google Play / App Store rollouts on GitHub Actions + Slack."
+  }
+}

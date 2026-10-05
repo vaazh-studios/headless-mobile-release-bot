@@ -201,6 +201,15 @@ def run(args) -> int:
     if copied:
         print(f"Copied workflows: {', '.join(copied)}")
 
+    if getattr(args, "skills", False) and root != BOT_ROOT:
+        # Codex reads .agents/skills, Claude Code reads .claude/skills: same SKILL.md files.
+        for target in (root / ".agents" / "skills", root / ".claude" / "skills"):
+            for skill in sorted((BOT_ROOT / "skills").glob("*/SKILL.md")):
+                dest = target / f"release-bot-{skill.parent.name}" / "SKILL.md"
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(skill, dest)
+        print("Added AI skills to .agents/skills (Codex) and .claude/skills (Claude Code)")
+
     repo = "OWNER/REPO"
     ios = "ios" in platforms
     print(f"""

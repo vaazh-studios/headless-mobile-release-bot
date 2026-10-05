@@ -1,0 +1,9 @@
+{
+  "name": "release-bot",
+  "description": "Set up, configure and troubleshoot Headless Mobile Release Bot: staged Google Play / App Store rollouts on GitHub Actions + Slack.",
+  "version": "0.1.0",
+  "author": {"name": "Vaazh Studios"},
+  "homepage": "https://github.com/vaazh-studios/headless-mobile-release-bot",
+  "repository": "https://github.com/vaazh-studios/headless-mobile-release-bot",
+  "license": "Apache-2.0"
+}

@@ -74,6 +74,7 @@ Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 | [Multiple apps & accounts](docs/multi-app.md) | Several apps across several Play developer accounts from one repo |
 | [Integrations](docs/integrations.md) | Sentry, PagerDuty, Amplitude, generic HTTP checks, Microsoft Teams, Optimizely kill switch |
 | [iOS](docs/ios.md) | App Store phased releases with the same schedule and rules (beta) |
+| [Claude Code & Codex](docs/ai-assistants.md) | Skills + plugin: "set up the release bot for this repo" |
 | [Use from your repo](examples/caller-workflows) | Short caller workflows for the reusable `rw-*.yml` workflows |
 | [Simulator](docs/simulator.md) | Replaying release weeks with mock data, writing scenarios |
 | [Security](SECURITY.md) | Credentials, permissions, who can release |

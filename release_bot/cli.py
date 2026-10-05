@@ -690,6 +690,7 @@ def parse_args(argv):
     i.add_argument("--tag-prefix", default=None)
     i.add_argument("--channel", help="Slack channel ID for the release thread")
     i.add_argument("--no-workflows", action="store_true")
+    i.add_argument("--skills", action="store_true", help="also add the AI skills for Codex / Claude Code")
     sub.add_parser("app-info").add_argument("--tag", default="")
     return ap.parse_args(argv)
 
