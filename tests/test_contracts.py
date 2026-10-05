@@ -201,3 +201,12 @@ def test_discovery_check_catches_unknown_play_field(discovery):
     bad = {"track": "production", "releases": [{"name": "1.0", "status": "inProgress", "userFractionn": 0.1}]}
     assert any("userFractionn" in e for e in v.check_discovery(bad, "Track", discovery[0]))
     assert any("not in" in e for e in v.check_discovery({"releases": [{"status": "paused"}]}, "Track", discovery[0]))
+
+
+def test_play_halt_full_release_contract(discovery):
+    sys.path.insert(0, str(Path(__file__).parent))
+    from test_full_release_halt import Svc
+    from release_bot.play import Play
+    svc = Svc([{"name": "2.0.0", "versionCodes": ["200"], "status": "completed"}])
+    Play("com.acme", "production", service=svc).halt(include_completed=True)
+    assert not v.check_discovery(svc.e.body, "Track", discovery[0])

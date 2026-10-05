@@ -25,7 +25,7 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from release_bot import config as config_mod
 from release_bot import gate, policy, rules, schedule, tags
@@ -202,7 +202,11 @@ def collect_health(deps: Deps, live_code: int | None, prev_code: int | None, ios
     if deps.vitals and "play_vitals" in wanted:
         def vitals():
             by_version = deps.vitals.latest_by_version()
-            return {"new": by_version.get(live_code), "prev": by_version.get(prev_code)}
+            prev = prev_code
+            if prev is None and live_code is not None:
+                # Play's track only lists the newest completed release; compare with the newest older build.
+                prev = max((c for c in by_version if c < live_code), default=None)
+            return {"new": by_version.get(live_code), "prev": by_version.get(prev)}
         fetch("play_vitals", vitals)
     if deps.crashlytics and "crashlytics" in wanted:
         if ios_version is not None:
@@ -395,7 +399,9 @@ def cmd_check(deps: Deps, args) -> int:
         from release_bot import ios_cmds
         return ios_cmds.check(deps, args)
     state, live = _live_or_none(deps)
-    if not live or live["status"] != "inProgress":
+    if not live:
+        return _check_full_release(deps, args, state)
+    if live["status"] != "inProgress":
         print("No in-progress rollout; nothing to check.")
         return 0
     version = live.get("name", "?")
@@ -426,6 +432,59 @@ def cmd_check(deps: Deps, args) -> int:
         else:
             deps.slack.post(key, f"🔔 FYI, still rolling out.{trigger}\n{verdict.scorecard()}")
             _alert(deps, f"🔔 {_name(deps)} {version}: FYI, still rolling out.{trigger}\n{verdict.scorecard()}")
+    return 0
+
+
+def _check_full_release(deps: Deps, args, state: TrackState) -> int:
+    """No staged rollout: keep watching the fully rolled-out release for
+    rollout.after_full_release.watch_days after the submit. Play can halt a
+    completed release; the previous completed release then serves again."""
+    release = state.completed
+    plan = rollout_policy(deps.cfg)
+    if not release or plan.after_full_action == "off" or not getattr(deps.play, "staged", True):
+        print("No in-progress rollout; nothing to check.")
+        return 0
+    version = release.get("name", "?")
+    code = TrackState.version_code(release)
+    submitted = _submitted_at(deps, version, code)
+    if submitted is None or utcnow() - submitted > timedelta(days=plan.after_full_watch_days):
+        print(f"{version} is fully released and outside the {plan.after_full_watch_days}-day watch; nothing to check.")
+        return 0
+    prev = next((r for r in state.releases if r.get("status") == "completed" and r is not release), None)
+    verdict = collect_health(deps, code, TrackState.version_code(prev), ctx=_version_ctx(release, prev))
+    print(verdict.scorecard())
+    _summary(deps, f"health check · {version} at 100%", verdict,
+             f"**{verdict.level.name}** · fully released, watched until day {plan.after_full_watch_days}"
+             + (f" · triggered by {args.trigger}" if args.trigger else ""))
+    trigger = f"\nTriggered by: {args.trigger}" if args.trigger else ""
+    key = _key(deps, version)
+
+    if verdict.level == Level.HALT and plan.after_full_action == "halt":
+        try:
+            deps.play.halt(include_completed=True)
+        except Exception as e:  # noqa: BLE001 — e.g. no earlier completed release to fall back to
+            text = (f"🛑 {_mention(deps.cfg)}A halt rule fired at 100%, but Play refused to halt the full release: "
+                    f"{str(e)[:300]}\nHalt it in Play Console or fix forward.\n{verdict.scorecard()}")
+            if not deps.slack.thread_contains(key, verdict.scorecard()):
+                deps.slack.post(key, text + _links(deps))
+                _alert(deps, f"🛑 {_name(deps)} {version}: couldn't halt the full release.\n{verdict.scorecard()}")
+            return 1
+        deps.slack.post(key, f"🛑 {_mention(deps.cfg)}*Full release HALTED* (was at 100%). Play serves the previous "
+                             f"release to new installs and updates again.{trigger}\n{verdict.scorecard()}\n"
+                             "Fix forward with a new build, or run *Resume* to release it to everyone again." + _links(deps))
+        _alert(deps, f"🛑 {_name(deps)} {version} full release auto-halted (was at 100%).{trigger}\n{verdict.scorecard()}")
+        _announce(deps, f"🛑 {_name(deps)} *{version}* release halted while we investigate; "
+                        "the previous version is served again.")
+        _halt_effects(deps, version, "full release auto-halted at 100%", automatic=True)
+    elif verdict.level in (Level.HALT, Level.HOLD, Level.NOTIFY):
+        # At 100% there's nothing left to hold; say it once per new picture.
+        if deps.slack.thread_contains(key, verdict.scorecard()):
+            print("Same message already posted; staying quiet.")
+            return 0
+        icon = "🛑" if verdict.level == Level.HALT else "⚠️" if verdict.level == Level.HOLD else "🔔"
+        deps.slack.post(key, f"{icon} {_mention(deps.cfg)}{version} is at 100% and health needs a look "
+                             f"(after_full_release: {plan.after_full_action}).{trigger}\n{verdict.scorecard()}{_links(deps)}")
+        _alert(deps, f"{icon} {_name(deps)} {version} (100%): health needs a look.{trigger}\n{verdict.scorecard()}")
     return 0
 
 
@@ -468,7 +527,9 @@ def cmd_advance(deps: Deps, args) -> int:
     version = live.get("name", "?")
     key = _key(deps, version)
     if live["status"] == "halted":
-        deps.slack.post(key, "⏸ Still halted — not advancing. Resume manually when it's safe.")
+        if not deps.slack.thread_contains(key, "Still halted"):
+            deps.slack.post(key, "⏸ Still halted — not advancing. Resume manually when it's safe.")
+        print("Halted; not advancing.")
         return 0
 
     plan = rollout_policy(cfg)
@@ -513,11 +574,14 @@ def cmd_halt(deps: Deps, args) -> int:
     if deps.cfg.get("platform") == "ios":
         from release_bot import ios_cmds
         return ios_cmds.halt(deps, args)
-    release = deps.play.halt()
+    release = deps.play.halt(include_completed=True)
     who = os.environ.get("GITHUB_ACTOR", "someone")
     version = release.get("name", "?")
-    deps.slack.post(_key(deps, version), f"🛑 {_mention(deps.cfg)}Halted manually by {who}. Reason: {args.reason or 'n/a'}")
-    _alert(deps, f"🛑 {_name(deps)} {version} rollout halted manually by {who}. Reason: {args.reason or 'n/a'}")
+    full = "userFraction" not in release
+    what = "Full release (was at 100%)" if full else "Rollout"
+    deps.slack.post(_key(deps, version), f"🛑 {_mention(deps.cfg)}{what} halted manually by {who}. Reason: {args.reason or 'n/a'}"
+                    + ("\nPlay serves the previous release to new installs and updates again." if full else ""))
+    _alert(deps, f"🛑 {_name(deps)} {version} {what.lower()} halted manually by {who}. Reason: {args.reason or 'n/a'}")
     _announce(deps, f"🛑 {_name(deps)} *{version}* rollout halted while we investigate.")
     _halt_effects(deps, version, f"rollout halted manually by {who}", automatic=False)
     return 0
@@ -530,7 +594,7 @@ def cmd_resume(deps: Deps, args) -> int:
     release = deps.play.resume()
     who = os.environ.get("GITHUB_ACTOR", "someone")
     deps.slack.post(_key(deps, release.get("name", "?")),
-                    f"▶️ Resumed by {who} at {_p(release.get('userFraction', 0))}. Reason: {args.reason or 'n/a'}")
+                    f"▶️ Resumed by {who} at {_p(release.get('userFraction', 1.0))}. Reason: {args.reason or 'n/a'}")
     return 0
 
 

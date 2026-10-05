@@ -30,11 +30,14 @@ If the run fails at the first step, read its message:
 | ⏸ Holding at 2% | Not enough data yet, or a mild regression | Read the ⚠️ lines. Not enough data usually clears by itself the next day |
 | ⚠️ Health needs a human look | A soft signal, e.g. ANR 1.5× last version | Look at the linked dashboards. It won't advance until it's green again |
 | 🛑 Rollout HALTED | A hard signal: new crash, Google threshold, critical alert | See "After a halt" |
+| 🛑 Full release HALTED | The same, after 100% (within `after_full_release.watch_days`) | Play serves the previous release again. See "After a halt" |
 | 🎉 Fully released | 100% | Done for the week |
 
 ## After a halt
 
 Users who already have the new version keep it; nobody new gets it. Play has no rollback.
+If the release was already at 100%, Play serves the previous completed release to new installs
+and updates instead.
 
 1. Read the 🛑 lines in the thread: which source and what it saw.
 2. Decide with the team:
@@ -42,7 +45,9 @@ Users who already have the new version keep it; nobody new gets it. Play has no 
      that tag and **supersede unfinished rollout** checked.
    - **False alarm / unrelated** (e.g. a backend incident) → **Actions → Android · Resume rollout**
      with a reason. It continues from the same percentage; the schedule picks up from there.
+     A halted full release goes straight back to 100%.
 
 ## Stopping it yourself
 
 **Actions → Android · HALT rollout**, with the app and a reason. Anyone can do this, any time. It's always safe.
+It also works on a release that's already at 100% (Android): the previous release serves again.

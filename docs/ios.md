@@ -10,6 +10,7 @@ The same schedule and health rules drive iOS, through Apple's **phased release**
 | A halt rule fires | The bot **pauses** the phased release (Apple allows up to 30 days of pauses in total). Users who updated keep the version; automatic updates stop. It never removes the app from sale |
 | Your 100% step | If healthy, the bot releases to everyone (can't be undone) |
 | Resume | Release hero only; sets the phased release back to active |
+| After 100% | Apple can't halt a version that's released to everyone (Android can: see `after_full_release` in [configuration.md](configuration.md)). Fix forward with a new version |
 
 Your schedule must be something Apple can do: `python -m release_bot validate` checks it
 (see [configuration.md](configuration.md#android-vs-ios)). With `platforms: aligned`, the shared

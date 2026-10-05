@@ -86,6 +86,22 @@
             "advance"
           ]
         },
+        "after_full_release": {
+          "type": "object",
+          "description": "Android: keep checking health after 100% and halt the full release on a halt rule",
+          "properties": {
+            "action": {
+              "enum": ["halt", "notify", "off"],
+              "description": "What a halt rule does once the release is at 100% (default: halt)"
+            },
+            "watch_days": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Days after the submit to keep checking (default: 7)"
+            }
+          },
+          "additionalProperties": false
+        },
         "steps": {
           "type": "array",
           "items": {

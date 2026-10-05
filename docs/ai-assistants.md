@@ -50,7 +50,7 @@ all still apply, and it never sees store credentials.
 | `doctor` | Starts the read-only Doctor workflow | No |
 | `submit_release` | Starts Submit. Returns a preview until it's called again with `confirm=true` | Yes |
 | `resume_rollout` | Starts Resume. Needs a reason; preview until `confirm=true` | Yes |
-| `halt_rollout` | Starts Halt (Android) or pauses the phased release (iOS). Needs a reason | Yes (always safe) |
+| `halt_rollout` | Starts Halt (Android, also after 100%) or pauses the phased release (iOS). Needs a reason | Yes (always safe) |
 
 Halt has no preview on purpose: stopping a rollout should never be slowed down. Submit and Resume
 still fail in the workflow if you aren't the on-duty release hero, whatever the AI client says.

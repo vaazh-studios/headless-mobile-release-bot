@@ -18,6 +18,9 @@ rollout:
     - {on: tuesday,   percent: 2}
     - {on: wednesday, percent: 100}
   when_data_is_thin: hold   # hold | advance
+  after_full_release:       # Android: keep watching after 100%
+    action: halt            # halt | notify | off
+    watch_days: 7           # days after the submit
 ```
 
 | Key | Meaning |
@@ -28,6 +31,7 @@ rollout:
 | later steps | Allowed from their day on, **only if health is green**, at most one step per run. A held day shifts the rest |
 | `when_data_is_thin` | Too few users on the new version to judge (`health.min_users`): `hold` waits, `advance` moves on if nothing else is wrong |
 | `platforms` | `aligned`: Android and iOS share `schedule`. `separate`: `android: {schedule: …}` and `ios: {schedule: …}` |
+| `after_full_release` | Android only. Health checks keep running on the fully released version until `watch_days` after the submit (default 7). `action: halt` (default) halts the full release on a halt rule, so Play serves the previous release to new installs and updates again; `notify` only posts; `off` stops checking at 100%. Not on the internal track, and only if an earlier completed release exists to take over. Apple can't halt a version that's released to everyone |
 
 Weekday or day-based? Weekdays suit a weekly release train and must fit within one week, in
 order (`friday, monday, tuesday` is fine). `day N` suits longer rollouts, or "N days of rollout

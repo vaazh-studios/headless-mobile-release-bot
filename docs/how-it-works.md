@@ -58,3 +58,7 @@ Good to know:
 - **There's no rollback on Play.** A halt stops new users from getting the update; users who
   already have it keep it. Fix forward with a higher `versionCode`. On iOS the bot pauses the
   phased release.
+- **Reaching 100% isn't the end of watching (Android).** Health checks continue for
+  `rollout.after_full_release.watch_days` after the submit (default 7). A halt rule then halts
+  the *full* release, and Play serves the previous completed release to new installs and updates
+  again. Apple has no equivalent once a version is released to everyone.

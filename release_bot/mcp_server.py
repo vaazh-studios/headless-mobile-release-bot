@@ -148,7 +148,7 @@ def build_server():
     def submit_release(tag: str, app: str = "", platform: str = "android", whats_new: str = "", confirm: bool = False) -> str:
         return submit(app, tag, platform, whats_new, confirm)
 
-    @server.tool(description="Halt (Android) or pause (iOS) a rollout. Always safe; needs a reason.", annotations=change)
+    @server.tool(description="Halt (Android, also at 100%) or pause (iOS) a rollout. Always safe; needs a reason.", annotations=change)
     def halt_rollout(reason: str, app: str = "", platform: str = "android") -> str:
         return halt(app, reason, platform)
 

@@ -144,6 +144,9 @@ class RolloutPolicy:
     ios: Schedule | None
     when_data_is_thin: str = "hold"
     warnings: list[str] = field(default_factory=list)
+    # Android only: keep checking health after 100% and halt the full release on a halt rule.
+    after_full_action: str = "halt"        # halt | notify | off
+    after_full_watch_days: int = 7         # counted from the submit
 
 
 def _schedule_from(steps_cfg, what: str) -> Schedule:
@@ -192,9 +195,17 @@ def from_config(cfg: dict) -> RolloutPolicy:
     thin = rollout.get("when_data_is_thin", "hold")
     if thin not in ("hold", "advance"):
         raise PolicyError("rollout.when_data_is_thin must be 'hold' or 'advance'")
+    after = rollout.get("after_full_release") or {}
+    action = after.get("action", "halt")
+    days = after.get("watch_days", 7)
+    if action not in ("halt", "notify", "off"):
+        raise PolicyError("rollout.after_full_release.action must be 'halt', 'notify' or 'off'")
+    if not isinstance(days, int) or isinstance(days, bool) or days < 0:
+        raise PolicyError("rollout.after_full_release.watch_days must be a whole number of days (0 or more)")
+    extra = {"after_full_action": action, "after_full_watch_days": days}
 
     if "schedule" not in rollout and "android" not in rollout and "ios" not in rollout:
-        return RolloutPolicy("aligned", _legacy_schedule(rollout, cfg.get("play", {})), None, thin)
+        return RolloutPolicy("aligned", _legacy_schedule(rollout, cfg.get("play", {})), None, thin, **extra)
 
     mode = rollout.get("platforms", "aligned")
     if mode == "aligned":
@@ -206,7 +217,7 @@ def from_config(cfg: dict) -> RolloutPolicy:
         ios = _schedule_from(ios_cfg, "rollout.ios.schedule") if ios_cfg else None
     else:
         raise PolicyError("rollout.platforms must be 'aligned' or 'separate'")
-    return RolloutPolicy(mode, android, ios, thin)
+    return RolloutPolicy(mode, android, ios, thin, **extra)
 
 
 def check(policy: RolloutPolicy, platforms: list[str]) -> tuple[list[str], list[str]]:

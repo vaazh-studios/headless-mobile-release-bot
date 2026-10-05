@@ -79,9 +79,21 @@ class MockStore:
     def fraction_now(self) -> float | None:
         approved = self.data.get("approved_at")
         live = self.track.live
-        if not live or not approved or _now() < datetime.fromisoformat(approved):
+        if not live:
+            # Fully released by the bot (not the seeded baseline): everyone's on it.
+            return 1.0 if self.submitted_at(TrackState.version_code(self.track.completed)) else None
+        if not approved or _now() < datetime.fromisoformat(approved):
             return None
-        return live.get("userFraction", 0)
+        return live.get("userFraction", 1.0)
+
+    def current_code(self) -> int | None:
+        """The version being watched: the staged release, else the newest completed one."""
+        return TrackState.version_code(self.track.live or self.track.completed)
+
+    def previous_code(self) -> int | None:
+        cur = self.current_code()
+        done = [TrackState.version_code(r) for r in self.data["releases"] if r["status"] == "completed"]
+        return max((c for c in done if cur is None or c < cur), default=None)
 
 
     def submitted_at(self, code: int | None) -> datetime | None:
@@ -129,15 +141,25 @@ class MockPlay:
                 r["userFraction"] = fraction
         return self._update(mutate, ("inProgress",), completes=fraction >= 1.0)
 
-    def halt(self) -> dict:
-        return self._update(lambda r: r.update(status="halted"), ("inProgress",))
+    staged = True
+
+    def halt(self, include_completed: bool = False) -> dict:
+        return self._update(lambda r: r.update(status="halted"), ("inProgress",), or_completed=include_completed)
 
     def resume(self) -> dict:
-        return self._update(lambda r: r.update(status="inProgress"), ("halted",))
+        return self._update(lambda r: r.update(status="inProgress" if "userFraction" in r else "completed"),
+                            ("halted",))
 
-    def _update(self, mutate, allowed, completes=False) -> dict:
+    def _update(self, mutate, allowed, completes=False, or_completed=False) -> dict:
         d = self.store.data
         live = next((r for r in d["releases"] if r["status"] in ("inProgress", "halted")), None)
+        if live is None and or_completed:
+            done = [r for r in d["releases"] if r["status"] == "completed"]
+            if len(done) < 2:
+                # Same rule as Play: a full release can only be halted if an earlier one can take over.
+                raise RuntimeError("can't halt the fully rolled-out release: no earlier completed release to serve")
+            live = max(done, key=lambda r: int(r["versionCodes"][0]))
+            allowed = allowed + ("completed",)
         if not live or live["status"] not in allowed:
             raise RuntimeError(f"no {'/'.join(allowed)} release on production (current: {live['status'] if live else 'none'})")
         if self.dry_run:
@@ -146,8 +168,10 @@ class MockPlay:
             print(f"[dry-run] would set {preview}")
             return preview
         mutate(live)
-        if completes:
-            d["releases"] = [live]
+        if completes or live["status"] == "completed":
+            # Keep the previous completed release: it's what Play serves if this one is halted.
+            others = [r for r in d["releases"] if r is not live and r["status"] == "completed"]
+            d["releases"] = [live] + ([max(others, key=lambda r: int(r["versionCodes"][0]))] if others else [])
         self._record(int(live["versionCodes"][0]), live["status"], live.get("userFraction", 1.0))
         return copy.deepcopy(live)
 
@@ -162,12 +186,12 @@ class MockVitals:
     def latest_by_version(self) -> dict[int, dict]:
         out = {}
         daily = _env_int("MOCK_DAILY_USERS", 100000)
-        prev = TrackState.version_code(self.store.track.completed)
+        prev = self.store.previous_code()
         frac = self.store.fraction_now()
         if prev:
-            out[prev] = {"distinctUsers": daily * (1 - (frac or 0)), **BASELINE}
-        code = self.store.live_code()
-        if code and frac:
+            out[prev] = {"distinctUsers": daily * max(1 - (frac or 0), 0.05), **BASELINE}
+        code = self.store.current_code()
+        if code and frac and code != prev:
             overrides = INCIDENTS[self.store.data.get("incident", "none")].get("vitals", {})
             out[code] = {
                 "distinctUsers": daily * frac,

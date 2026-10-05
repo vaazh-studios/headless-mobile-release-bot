@@ -29,6 +29,12 @@ class TrackState:
         return next((r for r in self.releases if r.get("status") in LIVE_STATUSES), None)
 
     @property
+    def fully_halted(self) -> bool:
+        """The live release is a halted *fully rolled-out* release (no userFraction)."""
+        live = self.live
+        return bool(live and live.get("status") == "halted" and "userFraction" not in live)
+
+    @property
     def completed(self) -> dict | None:
         """The release currently serving everyone else (the previous version)."""
         done = [r for r in self.releases if r.get("status") == "completed"]
@@ -100,18 +106,28 @@ class Play:
                 r["userFraction"] = fraction
         return self._update_live(mutate, allowed=("inProgress",))
 
-    def halt(self) -> dict:
-        return self._update_live(lambda r: r.update(status="halted"), allowed=("inProgress",))
+    def halt(self, include_completed: bool = False) -> dict:
+        """Halt the staged rollout. With include_completed, and no staged rollout, halt the
+        fully rolled-out release instead: Play then serves the previous completed release.
+        Not possible on internal testing, or without an earlier completed release."""
+        return self._update_live(lambda r: r.update(status="halted"), allowed=("inProgress",),
+                                 or_completed=include_completed and self.staged)
 
     def resume(self) -> dict:
-        return self._update_live(lambda r: r.update(status="inProgress"), allowed=("halted",))
+        # A halted full release has no userFraction; it resumes to everyone.
+        return self._update_live(lambda r: r.update(status="inProgress" if "userFraction" in r else "completed"),
+                                 allowed=("halted",))
 
-    def _update_live(self, mutate, allowed: tuple[str, ...]) -> dict:
+    def _update_live(self, mutate, allowed: tuple[str, ...], or_completed: bool = False) -> dict:
         # Re-read inside the same edit right before writing, so a halt that
         # landed a moment ago is never overwritten by a rollout increase.
         edit = self.edits.insert(packageName=self.package, body={}).execute()
         track = self.edits.tracks().get(packageName=self.package, editId=edit["id"], track=self.track).execute()
-        live = TrackState(track.get("releases", [])).live
+        state = TrackState(track.get("releases", []))
+        live = state.live
+        if or_completed and not live:
+            live = state.completed
+            allowed = allowed + ("completed",)
         if not live or live["status"] not in allowed:
             self.edits.delete(packageName=self.package, editId=edit["id"]).execute()
             status = live["status"] if live else "none"
