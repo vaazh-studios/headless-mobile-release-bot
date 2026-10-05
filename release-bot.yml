@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/vaazh-studios/headless-mobile-release-bot/main/release_bot/schema/release-bot.schema.json
 # Headless Mobile Release Bot configuration.
 #
 #   defaults   shared by every app (any key can be overridden per app)

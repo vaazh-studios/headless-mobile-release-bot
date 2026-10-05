@@ -109,7 +109,7 @@ def _resolve_android(raw: dict, app_id: str | None = None) -> dict:
         cfg.update(app_id=LEGACY_APP_ID, display_name="Android", account="default",
                    environment="play-production", signing_environment="android-signing",
                    repository="", tag_prefix=cfg.get("tag_prefix", ""))
-        cfg["tag_pattern"] = cfg.get("tag_pattern") or f"{cfg['tag_prefix']}v*"
+        cfg["tag_pattern"] = cfg.get("tag_pattern") or f"{cfg['tag_prefix']}*"
         cfg["build"] = _merge(BUILD_DEFAULTS, cfg.get("build", {}))
         return cfg
 
@@ -141,14 +141,15 @@ def _resolve_android(raw: dict, app_id: str | None = None) -> dict:
         repository=app.get("repository", ""),
         tag_prefix=app.get("tag_prefix", ""),
     )
-    cfg["tag_pattern"] = f"{cfg['tag_prefix']}v*"
+    cfg["tag_pattern"] = f"{cfg['tag_prefix']}*"
     cfg["build"] = _merge(BUILD_DEFAULTS, cfg.get("build", {}))
     return cfg
 
 
 def version_from_tag(cfg: dict, tag: str) -> str:
     """`shop/v4.12.0` → `4.12.0` for an app with tag_prefix `shop/`. Raises on mismatch."""
-    m = re.fullmatch(re.escape(cfg["tag_prefix"]) + r"v(\d+\.\d+\.\d+)", tag)
+    m = re.fullmatch(re.escape(cfg["tag_prefix"]) + r"v?(\d+\.\d+\.\d+)", tag)
     if not m:
-        raise ConfigError(f"'{tag}' doesn't match {cfg['tag_prefix']}vX.Y.Z for app '{cfg['app_id']}'")
+        raise ConfigError(f"'{tag}' doesn't match {cfg['tag_prefix']}vX.Y.Z (or {cfg['tag_prefix']}X.Y.Z) "
+                          f"for app '{cfg['app_id']}'")
     return m.group(1)

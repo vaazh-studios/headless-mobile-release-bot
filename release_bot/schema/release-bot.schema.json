@@ -1,0 +1,1143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/vaazh-studios/headless-mobile-release-bot/main/release_bot/schema/release-bot.schema.json",
+  "title": "Headless Mobile Release Bot configuration (release-bot.yml)",
+  "description": "See docs/configuration.md",
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "on",
+        "percent"
+      ],
+      "properties": {
+        "on": {
+          "description": "A weekday (monday) or 'day N' (N days after the submit day)",
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^([Mm]on|[Tt]ue|[Ww]ed|[Tt]hu|[Ff]ri|[Ss]at|[Ss]un)[A-Za-z]*$|^[Dd]ay\\s*\\d+$"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "percent": {
+          "description": "Percentage: a number (1 = 1%) or a string like \"0.47%\"",
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[0-9]*\\.?[0-9]+\\s*%?\\s*$"
+            }
+          ]
+        }
+      }
+    },
+    "schedule": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/step"
+      },
+      "description": "Steps in order; the first goes live when the store approves"
+    },
+    "rollout": {
+      "type": "object",
+      "properties": {
+        "platforms": {
+          "enum": [
+            "aligned",
+            "separate"
+          ],
+          "description": "aligned: Android and iOS share `schedule`; separate: android:/ios:"
+        },
+        "schedule": {
+          "$ref": "#/$defs/schedule"
+        },
+        "android": {
+          "type": "object",
+          "properties": {
+            "schedule": {
+              "$ref": "#/$defs/schedule"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ios": {
+          "type": "object",
+          "properties": {
+            "schedule": {
+              "$ref": "#/$defs/schedule"
+            }
+          },
+          "additionalProperties": false
+        },
+        "when_data_is_thin": {
+          "enum": [
+            "hold",
+            "advance"
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Older format"
+        },
+        "targets": {
+          "type": "object",
+          "description": "Older format: weekday \u2192 fraction"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "play_vitals",
+            "crashlytics",
+            "grafana",
+            "datadog",
+            "sentry",
+            "http",
+            "pagerduty",
+            "amplitude",
+            "incident_io"
+          ]
+        },
+        "action": {
+          "enum": [
+            "halt",
+            "hold",
+            "notify"
+          ],
+          "default": "halt"
+        },
+        "metric": {
+          "type": "string"
+        },
+        "above": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[0-9]*\\.?[0-9]+\\s*%?\\s*$"
+            }
+          ]
+        },
+        "below": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[0-9]*\\.?[0-9]+\\s*%?\\s*$"
+            }
+          ]
+        },
+        "above_previous_by": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[0-9]*\\.?[0-9]+\\s*%?\\s*$"
+            }
+          ]
+        },
+        "below_previous_by": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[0-9]*\\.?[0-9]+\\s*%?\\s*$"
+            }
+          ]
+        },
+        "at_least": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "alert": {
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "enum": [
+                "alert",
+                "warn"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "alert",
+                  "warn"
+                ]
+              }
+            }
+          ]
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
+        "monitor": {
+          "type": "string"
+        },
+        "urgency": {
+          "anyOf": [
+            {
+              "enum": [
+                "high",
+                "low"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "high",
+                  "low"
+                ]
+              }
+            }
+          ]
+        },
+        "service": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "name_matches": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "health": {
+      "type": "object",
+      "properties": {
+        "min_users": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "play_vitals": {
+              "type": "object"
+            },
+            "crashlytics": {
+              "type": "object",
+              "properties": {
+                "project": {
+                  "type": "string"
+                },
+                "dataset": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                },
+                "ios_table": {
+                  "type": "string"
+                },
+                "lookback_days": {
+                  "type": "integer"
+                },
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "grafana": {
+              "type": "object",
+              "properties": {
+                "matchers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "datadog": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                }
+              }
+            },
+            "sentry": {
+              "type": "object",
+              "required": [
+                "org",
+                "project"
+              ],
+              "properties": {
+                "org": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "environment": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "release": {
+                  "type": "string"
+                },
+                "period": {
+                  "type": "string"
+                },
+                "min_users": {
+                  "type": "integer"
+                }
+              }
+            },
+            "http": {
+              "type": "object",
+              "properties": {
+                "checks": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "url",
+                      "value"
+                    ],
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "get",
+                          "post"
+                        ]
+                      },
+                      "headers": {
+                        "type": "object"
+                      },
+                      "body": {},
+                      "value": {
+                        "type": "string"
+                      },
+                      "previous": {
+                        "type": "boolean"
+                      },
+                      "timeout": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "pagerduty": {
+              "type": "object",
+              "properties": {
+                "service_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "amplitude": {
+              "type": "object",
+              "properties": {
+                "region": {
+                  "enum": [
+                    "us",
+                    "eu"
+                  ]
+                },
+                "days": {
+                  "type": "integer"
+                },
+                "version_property": {
+                  "type": "string"
+                },
+                "min_users": {
+                  "type": "integer"
+                },
+                "funnels": {
+                  "type": "object"
+                }
+              }
+            },
+            "incident_io": {
+              "type": "object"
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          }
+        },
+        "min_distinct_users": {
+          "type": "integer"
+        },
+        "play_vitals": {
+          "type": "object"
+        },
+        "crashlytics": {
+          "type": "object"
+        },
+        "grafana": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "app": {
+      "type": "object",
+      "required": [
+        "account",
+        "package_name"
+      ],
+      "properties": {
+        "account": {
+          "type": "string",
+          "description": "A key under accounts:"
+        },
+        "name": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$"
+        },
+        "bundle_id": {
+          "type": "string"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "android",
+              "ios"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "repository": {
+          "type": "string",
+          "description": "owner/repo holding the app's code, if not this repo"
+        },
+        "tag_prefix": {
+          "type": "string"
+        },
+        "signing_environment": {
+          "type": "string"
+        },
+        "ios_environment": {
+          "type": "string"
+        },
+        "build": {
+          "type": "object",
+          "properties": {
+            "project_dir": {
+              "type": "string"
+            },
+            "bundle_task": {
+              "type": "string"
+            },
+            "aab_glob": {
+              "type": "string"
+            },
+            "java_version": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA timezone for weekday steps, e.g. Europe/Berlin"
+        },
+        "mode": {
+          "enum": [
+            "live",
+            "shadow"
+          ]
+        },
+        "play": {
+          "type": "object",
+          "properties": {
+            "track": {
+              "type": "string"
+            },
+            "release_notes_language": {
+              "type": "string"
+            },
+            "default_release_notes": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "changes_not_sent_for_review": {
+              "type": "boolean"
+            },
+            "initial_fraction": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rollout": {
+          "$ref": "#/$defs/rollout"
+        },
+        "health": {
+          "$ref": "#/$defs/health"
+        },
+        "slack": {
+          "type": "object",
+          "properties": {
+            "channel_id": {
+              "type": "string"
+            },
+            "announce_channel_id": {
+              "type": "string"
+            },
+            "alerts_channel_id": {
+              "type": "string"
+            },
+            "hero_usergroup_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "access": {
+          "type": "object",
+          "properties": {
+            "release_heroes": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "on_duty": {
+              "type": "object",
+              "properties": {
+                "incident_io_schedule_id": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "notify": {
+          "type": "object",
+          "properties": {
+            "teams": {
+              "type": "boolean"
+            },
+            "pagerduty": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "critical",
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                }
+              }
+            },
+            "incident_io": {
+              "type": "object",
+              "properties": {
+                "alert_source_config_id": {
+                  "type": "string"
+                },
+                "declare_incident": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "severity": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "enum": [
+                        "standard",
+                        "test"
+                      ]
+                    },
+                    "visibility": {
+                      "enum": [
+                        "public",
+                        "private"
+                      ]
+                    },
+                    "incident_type_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "on_halt": {
+          "type": "object",
+          "properties": {
+            "optimizely": {
+              "type": "object",
+              "required": [
+                "project_id",
+                "flags"
+              ],
+              "properties": {
+                "project_id": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                },
+                "environment": {
+                  "type": "string"
+                },
+                "flags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "links": {
+          "type": "object",
+          "properties": {
+            "halt_workflow": {
+              "type": "string"
+            },
+            "resume_workflow": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Multi-app",
+      "type": "object",
+      "required": [
+        "accounts",
+        "apps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "defaults": {
+          "type": "object",
+          "properties": {
+            "timezone": {
+              "type": "string",
+              "description": "IANA timezone for weekday steps, e.g. Europe/Berlin"
+            },
+            "mode": {
+              "enum": [
+                "live",
+                "shadow"
+              ]
+            },
+            "play": {
+              "type": "object",
+              "properties": {
+                "track": {
+                  "type": "string"
+                },
+                "release_notes_language": {
+                  "type": "string"
+                },
+                "default_release_notes": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "changes_not_sent_for_review": {
+                  "type": "boolean"
+                },
+                "initial_fraction": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "rollout": {
+              "$ref": "#/$defs/rollout"
+            },
+            "health": {
+              "$ref": "#/$defs/health"
+            },
+            "slack": {
+              "type": "object",
+              "properties": {
+                "channel_id": {
+                  "type": "string"
+                },
+                "announce_channel_id": {
+                  "type": "string"
+                },
+                "alerts_channel_id": {
+                  "type": "string"
+                },
+                "hero_usergroup_id": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "access": {
+              "type": "object",
+              "properties": {
+                "release_heroes": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "on_duty": {
+                  "type": "object",
+                  "properties": {
+                    "incident_io_schedule_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "notify": {
+              "type": "object",
+              "properties": {
+                "teams": {
+                  "type": "boolean"
+                },
+                "pagerduty": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "severity": {
+                      "enum": [
+                        "critical",
+                        "error",
+                        "warning",
+                        "info"
+                      ]
+                    }
+                  }
+                },
+                "incident_io": {
+                  "type": "object",
+                  "properties": {
+                    "alert_source_config_id": {
+                      "type": "string"
+                    },
+                    "declare_incident": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "severity": {
+                          "type": "string"
+                        },
+                        "mode": {
+                          "enum": [
+                            "standard",
+                            "test"
+                          ]
+                        },
+                        "visibility": {
+                          "enum": [
+                            "public",
+                            "private"
+                          ]
+                        },
+                        "incident_type_id": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "on_halt": {
+              "type": "object",
+              "properties": {
+                "optimizely": {
+                  "type": "object",
+                  "required": [
+                    "project_id",
+                    "flags"
+                  ],
+                  "properties": {
+                    "project_id": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ]
+                    },
+                    "environment": {
+                      "type": "string"
+                    },
+                    "flags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "links": {
+              "type": "object",
+              "properties": {
+                "halt_workflow": {
+                  "type": "string"
+                },
+                "resume_workflow": {
+                  "type": "string"
+                }
+              }
+            },
+            "tag_pattern": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "accounts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "environment": {
+                "type": "string"
+              },
+              "ios_environment": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "apps": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/app"
+          }
+        }
+      }
+    },
+    {
+      "title": "Single app (older format)",
+      "type": "object",
+      "required": [
+        "package_name"
+      ],
+      "not": {
+        "required": [
+          "apps"
+        ]
+      },
+      "properties": {
+        "timezone": {
+          "type": "string",
+          "description": "IANA timezone for weekday steps, e.g. Europe/Berlin"
+        },
+        "mode": {
+          "enum": [
+            "live",
+            "shadow"
+          ]
+        },
+        "play": {
+          "type": "object",
+          "properties": {
+            "track": {
+              "type": "string"
+            },
+            "release_notes_language": {
+              "type": "string"
+            },
+            "default_release_notes": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "changes_not_sent_for_review": {
+              "type": "boolean"
+            },
+            "initial_fraction": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rollout": {
+          "$ref": "#/$defs/rollout"
+        },
+        "health": {
+          "$ref": "#/$defs/health"
+        },
+        "slack": {
+          "type": "object",
+          "properties": {
+            "channel_id": {
+              "type": "string"
+            },
+            "announce_channel_id": {
+              "type": "string"
+            },
+            "alerts_channel_id": {
+              "type": "string"
+            },
+            "hero_usergroup_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "access": {
+          "type": "object",
+          "properties": {
+            "release_heroes": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "on_duty": {
+              "type": "object",
+              "properties": {
+                "incident_io_schedule_id": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "notify": {
+          "type": "object",
+          "properties": {
+            "teams": {
+              "type": "boolean"
+            },
+            "pagerduty": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "critical",
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                }
+              }
+            },
+            "incident_io": {
+              "type": "object",
+              "properties": {
+                "alert_source_config_id": {
+                  "type": "string"
+                },
+                "declare_incident": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "severity": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "enum": [
+                        "standard",
+                        "test"
+                      ]
+                    },
+                    "visibility": {
+                      "enum": [
+                        "public",
+                        "private"
+                      ]
+                    },
+                    "incident_type_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "on_halt": {
+          "type": "object",
+          "properties": {
+            "optimizely": {
+              "type": "object",
+              "required": [
+                "project_id",
+                "flags"
+              ],
+              "properties": {
+                "project_id": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                },
+                "environment": {
+                  "type": "string"
+                },
+                "flags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "links": {
+          "type": "object",
+          "properties": {
+            "halt_workflow": {
+              "type": "string"
+            },
+            "resume_workflow": {
+              "type": "string"
+            }
+          }
+        },
+        "tag_pattern": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

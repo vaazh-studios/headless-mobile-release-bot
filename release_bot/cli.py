@@ -14,6 +14,7 @@
   plan              each app's rollout timeline (Android/iOS) and health rules
   validate          fail if any schedule or health rule is invalid (CI)
   doctor            check every permission/connection an app needs, with fixes
+  init              write release-bot.yml + caller workflows for an app repo
 
 Every command takes --app <id> when release-bot.yml defines several apps.
 """
@@ -675,6 +676,20 @@ def parse_args(argv):
     sub.add_parser("plan")
     sub.add_parser("validate")
     sub.add_parser("doctor")
+    i = sub.add_parser("init", help="write release-bot.yml and caller workflows for an app repo")
+    i.add_argument("--dir", default=".")
+    i.add_argument("--yes", action="store_true", help="don't ask; use what's detected plus flags")
+    i.add_argument("--force", action="store_true")
+    i.add_argument("--package")
+    i.add_argument("--app-id")
+    i.add_argument("--name")
+    i.add_argument("--platforms", help="android or android,ios")
+    i.add_argument("--schedule", help="weekly | 5-day | fast")
+    i.add_argument("--project-dir")
+    i.add_argument("--bundle-task")
+    i.add_argument("--tag-prefix", default=None)
+    i.add_argument("--channel", help="Slack channel ID for the release thread")
+    i.add_argument("--no-workflows", action="store_true")
     sub.add_parser("app-info").add_argument("--tag", default="")
     return ap.parse_args(argv)
 
@@ -722,7 +737,14 @@ def cmd_plan(raw: dict, app: str | None) -> int:
 
 
 def cmd_validate(raw: dict, app: str | None) -> int:
-    """Exit non-zero if any app's schedule or health rules are invalid."""
+    """Exit non-zero if release-bot.yml doesn't match the schema, or any app's schedule or rules are invalid."""
+    from release_bot import schema
+    schema_errors = schema.errors(raw)
+    for e in schema_errors:
+        print(f"::error::release-bot.yml: {e}")
+    if schema_errors:
+        print("release-bot.yml is invalid")
+        return 1
     ids = [app] if app else config_mod.app_ids(raw)
     failed = False
     for app_id in ids:
@@ -774,6 +796,9 @@ def cmd_apps(raw: dict) -> int:
 
 def main(argv=None, deps: Deps | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    if args.command == "init":
+        from release_bot import init_cmd
+        return init_cmd.run(args)
     if deps is None:
         raw = config_mod.load(args.config)
         if args.command == "apps":

@@ -19,6 +19,11 @@ client or add an endpoint, add its operation to `scripts/update_api_specs.py` an
 refresh the snapshots. Google Play is checked against the discovery documents bundled with
 google-api-python-client.
 
+## Adding a config option
+
+Add it to `release_bot/schema/release-bot.schema.json` as well; a test checks that every shipped
+config (`release-bot.yml`, `examples/`, `tests/release-bot*.yml`) passes the schema.
+
 ## Layout
 
 | Path | What |

@@ -240,3 +240,38 @@ def test_source_without_rules_is_ignored():
     assert [f.source for f in findings] == ["play-vitals"]   # grafana outage doesn't matter here
     no_vitals = {**growth, "rules": [r for r in growth["rules"] if r.source != "play_vitals"]}
     assert rules.evaluate(no_vitals, {"play_vitals": {"new": None, "prev": None}}) == []
+
+
+# ---------------- JSON Schema ----------------
+
+def test_schema_accepts_all_shipped_configs():
+    import glob, yaml
+    from release_bot import schema
+    root = HERE.parent
+    for f in [root / "release-bot.yml", *map(Path, glob.glob(str(root / "examples" / "*.yml"))),
+              *map(Path, glob.glob(str(HERE / "release-bot*.yml")))]:
+        assert schema.errors(yaml.safe_load(f.read_text())) == [], f
+
+
+@pytest.mark.parametrize("mutate, expected", [
+    (lambda c: c["apps"]["checkout-team"].update(platfroms=["android"]), "platfroms"),
+    (lambda c: c["defaults"]["rollout"]["schedule"][0].update(percentt=5), "percentt"),
+    (lambda c: c["defaults"]["health"]["rules"][0].update(action="explode"), "explode"),
+    (lambda c: c["defaults"]["health"]["sources"].update(newrelic={}), "newrelic"),
+    (lambda c: c["apps"]["checkout-team"].pop("account"), "account"),
+])
+def test_schema_catches_typos(mutate, expected):
+    import copy, yaml
+    from release_bot import schema
+    cfg = copy.deepcopy(yaml.safe_load(TEAMS.read_text()) if isinstance(TEAMS, Path) else yaml.safe_load(open(TEAMS)))
+    mutate(cfg)
+    errs = schema.errors(cfg)
+    assert errs and any(expected in e for e in errs), errs
+
+
+def test_tags_without_v_are_accepted():
+    cfg = config.resolve(RAW, "checkout-team")
+    assert config.version_from_tag(cfg, "v4.12.0") == "4.12.0"
+    assert config.version_from_tag(cfg, "4.12.0") == "4.12.0"
+    with pytest.raises(config.ConfigError):
+        config.version_from_tag(cfg, "release-4.12")

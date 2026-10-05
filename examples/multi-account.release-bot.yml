@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/vaazh-studios/headless-mobile-release-bot/main/release_bot/schema/release-bot.schema.json
 # Three apps on one Google Play developer account, one app on another.
 # Copy over release-bot.yml and adjust. Only the differences from the single-app
 # file are shown under defaults; see release-bot.yml for every option.

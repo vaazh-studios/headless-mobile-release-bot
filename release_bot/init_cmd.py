@@ -1,0 +1,223 @@
+"""`release_bot init`: look at an app repo, ask a few questions (or take flags),
+write release-bot.yml and the caller workflows, and print what's left to do.
+
+    python -m release_bot init                     # interactive
+    python -m release_bot init --yes               # accept what it detects
+    python -m release_bot init --yes --package com.acme.shop --platforms android,ios --schedule 5-day
+
+Never asks for or writes secrets: it prints the commands for you to run.
+"""
+
+import re
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+BOT_ROOT = Path(__file__).resolve().parents[1]
+CALLERS = BOT_ROOT / "examples" / "caller-workflows"
+SKIP_DIRS = {".git", "node_modules", "build", ".gradle", ".idea", "Pods", ".dart_tool", ".release-bot"}
+
+SCHEDULES = {
+    "weekly": ("Weekly train, Apple-compatible: 1% Mon → 2% Tue → 100% Wed",
+               [("monday", 1), ("tuesday", 2), ("wednesday", 100)]),
+    "5-day": ("Five days from submit: 5% → 25% → 100%",
+              [("day 1", 5), ("day 3", 25), ("day 5", 100)]),
+    "fast": ("Fast: 10% on approval → 50% next day → 100% the day after",
+             [("day 0", 10), ("day 1", 50), ("day 2", 100)]),
+}
+
+
+# Apple-compatible companions for schedules iOS can't follow (phased release: 1%, 2%, … or 100%).
+IOS_COMPANION = {
+    "5-day": [("day 1", 1), ("day 2", 2), ("day 5", 100)],
+    "fast": [("day 0", 1), ("day 1", 2), ("day 2", 100)],
+}
+
+
+@dataclass
+class Detected:
+    kind: str = "android"             # android | react-native | flutter
+    project_dir: str = "."
+    package_name: str = ""
+    tag_prefix: str = ""
+    tag_example: str = ""
+    notes: list[str] = field(default_factory=list)
+
+
+def _walk(root: Path, name: str, max_depth: int = 3):
+    for path in sorted(root.rglob(name)):
+        rel = path.relative_to(root)
+        if len(rel.parts) - 1 <= max_depth and not (set(rel.parts) & SKIP_DIRS):
+            yield path
+
+
+def detect(root: Path) -> Detected:
+    d = Detected()
+    if (root / "pubspec.yaml").exists():
+        d.kind = "flutter"
+        d.notes.append("Flutter: the Submit workflow builds with Gradle; set build.bundle_task, or replace the "
+                       "build step with `flutter build appbundle` (docs/setup.md).")
+    elif (root / "package.json").exists() and "react-native" in (root / "package.json").read_text(errors="ignore"):
+        d.kind = "react-native"
+    gradlew = next(_walk(root, "gradlew"), None)
+    if gradlew:
+        d.project_dir = str(gradlew.parent.relative_to(root)) or "."
+    else:
+        d.notes.append("No gradlew found; set build.project_dir to where your Gradle wrapper lives.")
+    base = root / d.project_dir
+    for gradle in [base / "app" / "build.gradle.kts", base / "app" / "build.gradle"]:
+        if gradle.exists():
+            m = re.search(r"""applicationId\s*=?\s*["']([\w.]+)["']""", gradle.read_text(errors="ignore"))
+            if m:
+                d.package_name = m.group(1)
+                break
+    try:
+        tags = subprocess.run(["git", "-C", str(root), "tag", "--sort=-creatordate"], capture_output=True,
+                              text=True, check=True).stdout.split()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        tags = []
+    for t in tags:
+        m = re.fullmatch(r"(.*?)v?\d+\.\d+\.\d+", t)
+        if m:
+            d.tag_prefix, d.tag_example = m.group(1), t
+            break
+    if not d.tag_example:
+        d.notes.append("No release tags found yet; the bot expects tags like v1.2.0 (or set tag_prefix).")
+    return d
+
+
+def _ask(prompt: str, default: str, interactive: bool) -> str:
+    if not interactive:
+        return default
+    answer = input(f"{prompt} [{default}]: ").strip()
+    return answer or default
+
+
+def render(app_id: str, name: str, package: str, platforms: list[str], schedule: str, project_dir: str,
+           bundle_task: str, tag_prefix: str, channel: str) -> str:
+    steps = SCHEDULES[schedule][1]
+    lines = lambda ss, indent: "\n".join(f"{indent}- {{on: {on}, percent: {pct}}}" for on, pct in ss)
+    if "ios" in platforms and schedule in IOS_COMPANION:
+        plat_mode = "separate"
+        schedule_block = (f"    android:\n      schedule:                      # {SCHEDULES[schedule][0]}\n"
+                          f"{lines(steps, '        ')}\n"
+                          f"    ios:\n      schedule:                      # Apple's phased release: 1% → 2% → everyone\n"
+                          f"{lines(IOS_COMPANION[schedule], '        ')}")
+    else:
+        plat_mode = "aligned"
+        schedule_block = f"    schedule:                        # {SCHEDULES[schedule][0]}\n{lines(steps, '      ')}"
+    aab_dir = "release" if bundle_task.endswith("bundleRelease") else "<flavor>Release"
+    return f"""# yaml-language-server: $schema=https://raw.githubusercontent.com/vaazh-studios/headless-mobile-release-bot/main/release_bot/schema/release-bot.schema.json
+# Generated by `release_bot init`. Reference: docs/configuration.md · docs/integrations.md
+# Check changes with: python -m release_bot validate && python -m release_bot plan
+
+defaults:
+  timezone: UTC
+  play:
+    track: production                # use your closed testing track (e.g. alpha) for a first real run
+    release_notes_language: en-US
+    default_release_notes: "Bug fixes and performance improvements."
+    changes_not_sent_for_review: false
+  rollout:
+    platforms: {plat_mode}
+{schedule_block}
+    when_data_is_thin: hold
+  health:
+    min_users: 1000
+    sources:
+      play_vitals: {{}}                # Play Console vitals; add crashlytics / sentry / grafana / datadog… later
+    rules:
+      - {{name: Google ANR line,   source: play_vitals, metric: user_perceived_anr_rate,   above: "0.47%", action: halt}}
+      - {{name: Google crash line, source: play_vitals, metric: user_perceived_crash_rate, above: "1.09%", action: halt}}
+      - {{name: ANR regression,    source: play_vitals, metric: user_perceived_anr_rate,   above_previous_by: "25%", action: hold}}
+      - {{name: Crash regression,  source: play_vitals, metric: user_perceived_crash_rate, above_previous_by: "25%", action: hold}}
+  slack:
+    channel_id: "{channel}"          # or the SLACK_CHANNEL_ID repo variable
+    announce_channel_id: ""
+    alerts_channel_id: ""
+    hero_usergroup_id: ""            # or access.on_duty.incident_io_schedule_id
+  access:
+    release_heroes: {{}}               # your-github-login: U0123456789 (Slack ID) or email
+
+accounts:
+  main:
+    environment: play-production     # GitHub environment with GCP_WORKLOAD_IDENTITY_PROVIDER / GCP_SERVICE_ACCOUNT
+{"    ios_environment: appstore-production" + chr(10) if "ios" in platforms else ""}
+apps:
+  {app_id}:
+    account: main
+    name: {name}
+    package_name: {package}
+    platforms: [{", ".join(platforms)}]
+    tag_prefix: "{tag_prefix}"
+    build:
+      project_dir: {project_dir}
+      bundle_task: "{bundle_task}"
+      aab_glob: app/build/outputs/bundle/{aab_dir}/*.aab
+"""
+
+
+def run(args) -> int:
+    root = Path(args.dir).resolve()
+    out = root / "release-bot.yml"
+    if out.exists() and not args.force:
+        print(f"::error::{out} already exists (use --force to overwrite)")
+        return 1
+    interactive = not args.yes and sys.stdin.isatty()
+    d = detect(root)
+    print(f"Detected: {d.kind} app · Gradle in `{d.project_dir}` · package `{d.package_name or '?'}` · "
+          f"tags like `{d.tag_example or 'none yet'}`")
+
+    package = args.package or _ask("Android package name (applicationId)", d.package_name or "com.example.app", interactive)
+    app_id = args.app_id or _ask("Short app id", package.split(".")[-1].replace("_", "-"), interactive)
+    name = args.name or _ask("Display name", app_id.replace("-", " ").title(), interactive)
+    platforms = [p.strip() for p in (args.platforms or _ask("Platforms (android,ios)", "android", interactive)).split(",") if p.strip()]
+    schedule = args.schedule or _ask(f"Schedule ({', '.join(SCHEDULES)})", "weekly", interactive)
+    if schedule not in SCHEDULES:
+        print(f"::error::schedule must be one of {', '.join(SCHEDULES)}")
+        return 1
+    bundle_task = args.bundle_task or ":app:bundleRelease"
+    tag_prefix = d.tag_prefix if args.tag_prefix is None else args.tag_prefix
+
+    text = render(app_id, name, package, platforms, schedule, args.project_dir or d.project_dir, bundle_task,
+                  tag_prefix, args.channel or "")
+    out.write_text(text)
+    print(f"Wrote {out.relative_to(root)}")
+
+    copied = []
+    if not args.no_workflows and CALLERS.exists() and root != BOT_ROOT:
+        wf = root / ".github" / "workflows"
+        wf.mkdir(parents=True, exist_ok=True)
+        for src in sorted(CALLERS.glob("*.yml")):
+            if src.name.startswith("sandbox-"):
+                continue
+            dest = wf / src.name
+            if dest.exists() and not args.force:
+                continue
+            shutil.copy(src, dest)
+            copied.append(dest.name)
+    if copied:
+        print(f"Copied workflows: {', '.join(copied)}")
+
+    repo = "OWNER/REPO"
+    ios = "ios" in platforms
+    print(f"""
+Next steps
+  1. Review release-bot.yml, then: python -m release_bot validate && python -m release_bot plan
+  2. GitHub environments (deployment branches: main):
+       play-production   vars GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT
+       android-signing   secrets ANDROID_UPLOAD_KEYSTORE_BASE64, ANDROID_UPLOAD_STORE_PASSWORD,
+                                 ANDROID_UPLOAD_KEY_ALIAS, ANDROID_UPLOAD_KEY_PASSWORD{'''
+       appstore-production  secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY''' if ios else ''}
+  3. Secrets you set yourself (never paste them into chats or files), e.g.:
+       pbpaste | gh secret set SLACK_BOT_TOKEN -R {repo}
+       gh variable set RELEASE_BOT_ENABLED --body true -R {repo}
+       gh variable set RELEASE_BOT_MODE --body shadow -R {repo}     # first releases: decide, don't act
+  4. Google Cloud + Play Console access: docs/setup.md (steps 1–2){'''
+     App Store Connect key: docs/ios.md''' if ios else ''}
+  5. Actions → "Android · Doctor" until it's all green.""")
+    for n in d.notes:
+        print(f"  ⚠️  {n}")
+    return 0

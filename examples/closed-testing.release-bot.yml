@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/vaazh-studios/headless-mobile-release-bot/main/release_bot/schema/release-bot.schema.json
 # A first real run on Google Play without touching production users:
 # the whole flow (upload, review, 1% → 2% → 100%, halt/resume, Slack) on a
 # CLOSED TESTING track whose testers are just your team.

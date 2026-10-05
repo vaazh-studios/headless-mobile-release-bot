@@ -51,7 +51,18 @@ Slack-style HTML report. See [docs/simulator.md](docs/simulator.md).
 
 ## Use it for real
 
-→ **[docs/setup.md](docs/setup.md)**: Google Cloud (keyless), Play Console permissions, Slack,
+In your app repo (with this repo checked out next to it, or `pip install -r release_bot/requirements.txt`):
+
+```bash
+python -m release_bot init        # detects your app, writes release-bot.yml + caller workflows
+python -m release_bot validate    # schema + schedule + rules
+python -m release_bot plan        # each app's timeline per platform and its health rules
+```
+
+Editors with the YAML language server (VS Code's YAML extension, IntelliJ) autocomplete and check
+`release-bot.yml` from its [JSON Schema](release_bot/schema/release-bot.schema.json).
+
+Then → **[docs/setup.md](docs/setup.md)**: Google Cloud (keyless), Play Console permissions, Slack,
 Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 
 | Doc | For |
