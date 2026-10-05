@@ -42,7 +42,9 @@ and bind each one to its own environment (see [multi-app.md](multi-app.md)).
 - *View app information and download bulk reports (read-only)*, needed for the Vitals API
 - *Release to production, exclude devices, and use Play App Signing*
 
-Also turn **off Managed publishing**, or approved changes will wait for a manual "Publish".
+Also turn **off Managed publishing**, or approved changes will wait for a manual "Publish" (the bot
+sees that state and asks the release hero in Slack to click it). Doctor checks that the bot can
+read the release's review state; without it the bot still works, going by health data.
 
 ## 3. Slack app
 

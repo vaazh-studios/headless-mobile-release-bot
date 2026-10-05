@@ -13,6 +13,13 @@ cron fires ─▶ read the production track from Play ─▶ check health ─▶
 - Monday's run sees `4.12.0 inProgress 2%`, the target for Monday is 20%, health is green, and it sets 20%.
 - If Monday held (for example, not enough users yet), Tuesday's run sees 2% and moves **one** step to 20%, not 50%. A held day shifts the plan by a day; it never jumps.
 - A halted release is never touched by the schedule. Only a human resumes it.
+- **Review state comes from the store too.** The track shows the release "in progress at 2%" as
+  soon as it's submitted, so each run also asks Play for the release's review state
+  (`tracks.releases.list`). While it's in review the bot waits; when Google approves it posts
+  "Approved by Google: live at 2%" and health checks start; a rejection alerts the release hero.
+  If Play doesn't answer (older client, no access), the bot goes by health data instead: no users
+  on the new version means "not enough data", which holds. On iOS the same comes from App Store
+  Connect's version state.
 - The Slack thread is found again by a marker in its root message, so that needs no state either.
 
 GitHub Actions cost: roughly 60 one-minute Linux runs a week.

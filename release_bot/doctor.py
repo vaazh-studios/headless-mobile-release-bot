@@ -174,6 +174,16 @@ def _google_checks(cfg: dict, norm: dict, f: Factory) -> list[Check]:
               "invited in the Play developer account that owns this app (multi-account: right environment?)."
          }.get(s, "Check the Play Android Developer API is enabled and the service account is invited."))))
 
+    def review():
+        n = len(f.play(cfg).releases_summary())
+        return Check(OK, "Play review status", f"readable · {n} release(s) on the track")
+    if hasattr(f.play(cfg), "releases_summary"):
+        c = _try("Play review status", review, lambda s, e: (
+            f"HTTP {s or '?'} ({e})",
+            "The bot can't see 'in review' / 'rejected' and waits for health data instead. Update "
+            "google-api-python-client (tracks.releases.list) and check the service account's app access."))
+        out.append(c if c.status == OK else Check(WARN, c.name, c.detail, c.fix))
+
     if "play_vitals" in norm["sources"]:
         def vitals():
             data = f.vitals(cfg).latest_by_version()

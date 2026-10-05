@@ -404,6 +404,8 @@ def cmd_check(deps: Deps, args) -> int:
     if live["status"] != "inProgress":
         print("No in-progress rollout; nothing to check.")
         return 0
+    if _play_review_gate(deps, live):
+        return 0
     version = live.get("name", "?")
     verdict = collect_health(deps, TrackState.version_code(live), TrackState.version_code(state.completed),
                              ctx=_version_ctx(live, state.completed))
@@ -488,6 +490,57 @@ def _check_full_release(deps: Deps, args, state: TrackState) -> int:
     return 0
 
 
+REVIEW_WAIT = {"in_review": "in Play review",
+               "not_sent_for_review": "waiting to be sent for review in Play Console",
+               "draft": "still a draft in Play Console"}
+
+
+def _play_review_gate(deps: Deps, live: dict) -> bool:
+    """Act on Play's review state for the staged release. True means it isn't live
+    yet, so there's nothing to check or step. Each message is posted once."""
+    if not hasattr(deps.play, "review_state"):
+        return False
+    state = deps.play.review_state(live)
+    if state is None:
+        return False
+    version = live.get("name", "?")
+    key = _key(deps, version)
+    pct = _p(live.get("userFraction", 1.0))
+
+    def once(marker: str, text: str, alert: str = "") -> None:
+        if deps.slack.thread_contains(key, marker):
+            return
+        deps.slack.post(key, text + _links(deps))
+        if alert:
+            _alert(deps, alert)
+
+    if state in REVIEW_WAIT:
+        print(f"{version} is {REVIEW_WAIT[state]}; waiting.")
+        _summary(deps, f"{version} · {REVIEW_WAIT[state]}", extra=f"Waiting: {REVIEW_WAIT[state]}.")
+        if state != "in_review":
+            once("Send it for review", f"⏳ {_mention(deps.cfg)}{version} is {REVIEW_WAIT[state]}. "
+                                       "Send it for review in Play Console → Publishing overview.")
+        return True
+    if state == "not_approved":
+        print(f"{version} was rejected in Play review.")
+        _summary(deps, f"{version} · rejected in Play review", extra="**Rejected by Google.** Nothing to check.")
+        once("rejected by Google", f"❌ {_mention(deps.cfg)}{version} was *rejected by Google* in Play review. "
+                                   "Check Play Console → Inbox and Policy status, fix it, and submit a new build "
+                                   "with *supersede unfinished rollout*.",
+             alert=f"❌ {_name(deps)} {version} was rejected in Play review.")
+        return True
+    if state == "approved_not_published":
+        print(f"{version} passed review; waiting for 'Publish changes' (managed publishing).")
+        _summary(deps, f"{version} · approved, not published", extra="Waiting for *Publish changes* in Play Console.")
+        once("Publish changes", f"✅ {_mention(deps.cfg)}{version} passed Play review. Managed publishing is on: "
+                                f"click *Publish changes* in Play Console → Publishing overview to go live at {pct}.")
+        return True
+    if state == "published" and not deps.slack.thread_contains(key, "Approved by Google"):
+        deps.slack.post(key, f"✅ Approved by Google: {version} is live at {pct}. Health checks start now.")
+        _announce(deps, f"✅ {_name(deps)} *{version}* passed Play review and is live at {pct}.")
+    return False
+
+
 def _version_ctx(live: dict, previous: dict | None) -> dict:
     """Template values for HTTP checks and Sentry release names."""
     return {"version": live.get("name"), "version_code": TrackState.version_code(live),
@@ -530,6 +583,8 @@ def cmd_advance(deps: Deps, args) -> int:
         if not deps.slack.thread_contains(key, "Still halted"):
             deps.slack.post(key, "⏸ Still halted — not advancing. Resume manually when it's safe.")
         print("Halted; not advancing.")
+        return 0
+    if _play_review_gate(deps, live):
         return 0
 
     plan = rollout_policy(cfg)

@@ -210,3 +210,18 @@ def test_play_halt_full_release_contract(discovery):
     svc = Svc([{"name": "2.0.0", "versionCodes": ["200"], "status": "completed"}])
     Play("com.acme", "production", service=svc).halt(include_completed=True)
     assert not v.check_discovery(svc.e.body, "Track", discovery[0])
+
+
+def test_play_review_status_contract(discovery):
+    import re
+    sys.path.insert(0, str(Path(__file__).parent))
+    from test_play_review import TracksSvc
+    from release_bot.play import Play
+    method = discovery[0]["resources"]["applications"]["resources"]["tracks"]["resources"]["releases"]["methods"]["list"]
+    svc = TracksSvc([])
+    Play("com.acme.shop", "production", service=svc).releases_summary()
+    assert re.fullmatch(method["parameters"]["parent"]["pattern"], svc.parent)
+    states = discovery[0]["schemas"]["ReleaseSummary"]["properties"]["releaseLifecycleState"]["enum"]
+    from release_bot.cli import REVIEW_WAIT
+    handled = set(REVIEW_WAIT) | {"not_approved", "approved_not_published", "published", "unspecified"}
+    assert {s.removeprefix("RELEASE_LIFECYCLE_STATE_").lower() for s in states} <= handled

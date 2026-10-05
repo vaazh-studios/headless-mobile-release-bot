@@ -26,6 +26,10 @@ If the run fails at the first step, read its message:
 
 | Slack message | Meaning | Do |
 |---|---|---|
+| ✅ Approved by Google: live at 2% | Play review passed; health checks start | Nothing |
+| ❌ Rejected by Google | Play review rejected the release | Play Console → Inbox / Policy status. Fix, tag, then **Submit** with **supersede unfinished rollout** |
+| ✅ Passed Play review … click *Publish changes* | Managed publishing is on, so Google waits for you | Click **Publish changes** in Play Console, or turn managed publishing off (docs/setup.md) |
+| ⏳ Send it for review in Play Console | `changes_not_sent_for_review: true`, so the release isn't in review yet | Send it for review in Play Console |
 | ⬆️ Rollout 2% → 20% | Healthy, moved on schedule | Nothing |
 | ⏸ Holding at 2% | Not enough data yet, or a mild regression | Read the ⚠️ lines. Not enough data usually clears by itself the next day |
 | ⚠️ Health needs a human look | A soft signal, e.g. ANR 1.5× last version | Look at the linked dashboards. It won't advance until it's green again |

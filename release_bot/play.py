@@ -59,10 +59,36 @@ class Play:
         self._svc = service
 
     @property
-    def edits(self):
+    def svc(self):
         if self._svc is None:
             self._svc = _service()
-        return self._svc.edits()
+        return self._svc
+
+    @property
+    def edits(self):
+        return self.svc.edits()
+
+    def releases_summary(self) -> list[dict]:
+        """Play's review lifecycle for each release on the track (tracks.releases.list)."""
+        parent = f"applications/{self.package}/tracks/{self.track}"
+        return self.svc.applications().tracks().releases().list(parent=parent).execute().get("releases", [])
+
+    def review_state(self, release: dict) -> str | None:
+        """in_review | approved_not_published | not_approved | published | not_sent_for_review |
+        draft, or None when Play doesn't say (no access, older client): callers fall back
+        to waiting for health data."""
+        try:
+            summaries = self.releases_summary()
+        except Exception as e:  # noqa: BLE001 — review status is a bonus; never block on it
+            print(f"::warning::Couldn't read Play review status ({str(e)[:200]}); going by health data instead.")
+            return None
+        codes = {int(c) for c in release.get("versionCodes", [])}
+        for s in summaries:
+            arts = {int(a.get("versionCode", 0)) for a in s.get("activeArtifacts", [])}
+            if codes & arts or (not arts and s.get("releaseName") == release.get("name")):
+                state = s.get("releaseLifecycleState", "").removeprefix("RELEASE_LIFECYCLE_STATE_").lower()
+                return state if state and state != "unspecified" else None
+        return None
 
     def track_state(self) -> TrackState:
         edit = self.edits.insert(packageName=self.package, body={}).execute()

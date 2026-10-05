@@ -33,6 +33,9 @@ INCIDENTS = {
         "annotations": {"summary": "5xx rate 3.4% on /v2/checkout for the new app version"}}]},
     "datadog-alert": {"datadog": [{"name": "[Android] Checkout error rate > 2%", "status": "alert", "priority": 1, "tags": ["team:mobile"]}]},
     "datadog-warn": {"datadog": [{"name": "[Android] App start p90 > 3s", "status": "warn", "priority": 3, "tags": ["team:mobile"]}]},
+    # Play review outcomes (Android): the Play API reports them per release.
+    "play-rejected": {"review": "not_approved"},
+    "play-awaiting-publish": {"review": "approved_not_published"},
     "grafana-warning": {"grafana": [{
         "labels": {"alertname": "Android p95 latency > 1.5s", "severity": "warning", "team": "mobile"},
         "annotations": {"summary": "p95 latency 1.8s on /v2/feed"}}]},
@@ -142,6 +145,16 @@ class MockPlay:
         return self._update(mutate, ("inProgress",), completes=fraction >= 1.0)
 
     staged = True
+
+    def review_state(self, release: dict) -> str | None:
+        """Mock Google review: in review until approved_at, then published (or an injected outcome)."""
+        forced = INCIDENTS[self.store.data.get("incident", "none")].get("review")
+        if forced and release.get("status") == "inProgress":
+            return forced
+        approved = self.store.data.get("approved_at")
+        if release.get("status") == "inProgress" and approved and _now() < datetime.fromisoformat(approved):
+            return "in_review"
+        return "published"
 
     def halt(self, include_completed: bool = False) -> dict:
         return self._update(lambda r: r.update(status="halted"), ("inProgress",), or_completed=include_completed)
