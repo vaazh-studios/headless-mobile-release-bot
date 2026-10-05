@@ -34,3 +34,62 @@ cp -r <bot>/skills/setup <app>/.agents/skills/release-bot-setup   # etc.
 ```
 
 Codex reads `.agents/skills/`, Claude Code reads `.claude/skills/`; `init --skills` writes both.
+
+## MCP server: release status and actions from any MCP client
+
+The skills cover setup. For day-to-day release work there's a small local MCP server
+(`release_bot/mcp_server.py`). It runs on your machine with **your** `gh` login and only starts the
+repo's existing workflows. The release-hero check, GitHub environments and the Actions audit trail
+all still apply, and it never sees store credentials.
+
+| Tool | What it does | Changes anything? |
+|---|---|---|
+| `release_status` | Last decision per app and platform from the newest rollout and health runs, with links | No |
+| `plan` | The rollout timeline and health rules from `release-bot.yml` | No |
+| `validate` | Schema, schedule and rule checks on `release-bot.yml` | No |
+| `doctor` | Starts the read-only Doctor workflow | No |
+| `submit_release` | Starts Submit. Returns a preview until it's called again with `confirm=true` | Yes |
+| `resume_rollout` | Starts Resume. Needs a reason; preview until `confirm=true` | Yes |
+| `halt_rollout` | Starts Halt (Android) or pauses the phased release (iOS). Needs a reason | Yes (always safe) |
+
+Halt has no preview on purpose: stopping a rollout should never be slowed down. Submit and Resume
+still fail in the workflow if you aren't the on-duty release hero, whatever the AI client says.
+
+**Requirements:** `gh auth login`, and the `mcp` package for the Python the client starts:
+
+```bash
+pip install -r release_bot/requirements.txt -r release_bot/mcp_requirements.txt
+```
+
+**Settings (environment variables):**
+- `RELEASE_BOT_REPO`: `owner/repo` to act on. Default: the git repo in the working directory.
+- `RELEASE_BOT_WORKFLOW_<NAME>`: override a workflow file name if you renamed the callers,
+  e.g. `RELEASE_BOT_WORKFLOW_SUBMIT=release-submit.yml`. Names: SUBMIT, ROLLOUT, HEALTH, HALT,
+  RESUME, DOCTOR.
+
+### Claude Code
+
+The plugin bundles the server (`.mcp.json`), so after `claude plugin install release-bot@vaazh-studios`
+it's there; check with `/mcp`. Without the plugin:
+
+```bash
+claude mcp add release-bot -e PYTHONPATH=<bot> -- python3 -m release_bot.mcp_server
+```
+
+### Codex
+
+Add it to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.release-bot]
+command = "python3"
+args = ["-m", "release_bot.mcp_server"]
+env = { PYTHONPATH = "/path/to/headless-mobile-release-bot" }
+```
+
+### ChatGPT, Slack and other hosted assistants
+
+The local server runs on a developer machine, so hosted assistants can't reach it. They can
+drive the bot through GitHub's own hosted MCP server or GitHub app instead: "run the *Release ·
+Submit to the store* workflow with app=shop, tag=v2.3.0". Every check runs inside the workflow,
+so it's just as safe.

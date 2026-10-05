@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "release-bot": {
+      "command": "python3",
+      "args": ["-m", "release_bot.mcp_server"],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}",
+        "RELEASE_BOT_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}"
+      }
+    }
+  }
+}

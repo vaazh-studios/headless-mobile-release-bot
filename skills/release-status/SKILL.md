@@ -9,6 +9,8 @@ Read-only. Don't trigger any workflow unless the user asks.
 
 ## Steps
 
+If the `release-bot` MCP server is connected, call its `release_status` tool and answer in step 3's format. Otherwise:
+
 1. Latest runs of the rollout and health workflows:
    `gh run list --workflow android-rollout.yml --limit 3` and
    `gh run list --workflow android-health.yml --limit 3` (plus `android-submit.yml` for recent submits).

@@ -66,3 +66,9 @@ def test_init_skills_for_codex_and_claude(tmp_path):
     for base in (".agents/skills", ".claude/skills"):
         assert (root / base / "release-bot-setup" / "SKILL.md").exists()
         assert (root / base / "release-bot-troubleshoot" / "SKILL.md").exists()
+
+
+def test_plugin_bundles_mcp_server():
+    servers = json.loads((ROOT / ".mcp.json").read_text())["mcpServers"]
+    assert servers["release-bot"]["args"] == ["-m", "release_bot.mcp_server"]
+    assert "${CLAUDE_PLUGIN_ROOT}" in servers["release-bot"]["env"]["PYTHONPATH"]

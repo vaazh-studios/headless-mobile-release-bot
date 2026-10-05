@@ -25,4 +25,4 @@ jobs:
           print("action files OK")
           PY
       - run: python -m release_bot validate
-      - run: pip install pytest && python -m pytest -q tests
+      - run: pip install pytest -r release_bot/mcp_requirements.txt && python -m pytest -q tests
