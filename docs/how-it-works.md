@@ -21,6 +21,13 @@ cron fires ─▶ read the production track from Play ─▶ check health ─▶
   on the new version means "not enough data", which holds. On iOS the same comes from App Store
   Connect's version state.
 - The Slack thread is found again by a marker in its root message, so that needs no state either.
+- **One queue per app.** Runs for the same app wait for each other (a GitHub concurrency group),
+  so two runs never write at once. The catch: a job stuck waiting on an environment or a runner
+  holds that queue, and later runs for the app wait and get cancelled. The Health workflow's first
+  job, which never waits on an environment, checks for runs stuck longer than
+  `stuck_runs.after_hours` (default 6) and posts each once to the Slack alerts channel with the
+  `gh run cancel` command. It never cancels anything itself: a Submit run may be waiting for an
+  approval you expect.
 
 GitHub Actions cost: roughly 60 one-minute Linux runs a week.
 

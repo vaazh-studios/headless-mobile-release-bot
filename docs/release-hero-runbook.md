@@ -36,6 +36,7 @@ If the run fails at the first step, read its message:
 | 🛑 Rollout HALTED | A hard signal: new crash, Google threshold, critical alert | See "After a halt" |
 | 🛑 Full release HALTED | The same, after 100% (within `after_full_release.watch_days`) | Play serves the previous release again. See "After a halt" |
 | 🎉 Fully released | 100% | Done for the week |
+| 🧯 … has been *waiting* for N h | A bot run is stuck in GitHub Actions and is blocking that app's queue | If it isn't waiting for an approval you expect, run the `gh run cancel` command from the message |
 
 ## After a halt
 

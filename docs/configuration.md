@@ -175,6 +175,21 @@ Play Vitals data is 1–2 days old and needs `min_users` on the new version; Cra
 Grafana are near real time. A good rule set halts on Crashlytics and Grafana quickly, and uses
 Vitals to stop the larger steps.
 
+## Stuck runs (whole repo)
+
+```yaml
+defaults:                  # top level in the single-app format
+  stuck_runs:
+    after_hours: 6         # 0 turns the watchdog off
+    workflows: [android-submit.yml, android-rollout.yml, android-health.yml,
+                android-halt.yml, android-resume.yml, android-doctor.yml]   # the default list
+```
+
+The Health workflow reports release bot runs that have been waiting, queued or running longer
+than `after_hours` (see [how it works](how-it-works.md)). List your caller file names under
+`workflows` if you renamed them. It needs `actions: read` in the Health caller's `permissions`
+(the example callers have it); without it the step only prints a warning.
+
 ## Per team
 
 ```yaml

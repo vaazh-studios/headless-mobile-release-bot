@@ -91,7 +91,11 @@
           "description": "Android: keep checking health after 100% and halt the full release on a halt rule",
           "properties": {
             "action": {
-              "enum": ["halt", "notify", "off"],
+              "enum": [
+                "halt",
+                "notify",
+                "off"
+              ],
               "description": "What a halt rule does once the release is at 100% (default: halt)"
             },
             "watch_days": {
@@ -922,6 +926,25 @@
             },
             "tag_pattern": {
               "type": "string"
+            },
+            "stuck_runs": {
+              "type": "object",
+              "description": "Warn (job summary + Slack alerts channel) about release bot runs stuck in GitHub Actions",
+              "properties": {
+                "after_hours": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Report runs waiting/queued/running longer than this (default 6; 0 = off)"
+                },
+                "workflows": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Caller workflow file names to watch (default: the android-*.yml callers)"
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -1152,6 +1175,25 @@
         },
         "package_name": {
           "type": "string"
+        },
+        "stuck_runs": {
+          "type": "object",
+          "description": "Warn (job summary + Slack alerts channel) about release bot runs stuck in GitHub Actions",
+          "properties": {
+            "after_hours": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Report runs waiting/queued/running longer than this (default 6; 0 = off)"
+            },
+            "workflows": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Caller workflow file names to watch (default: the android-*.yml callers)"
+            }
+          },
+          "additionalProperties": false
         }
       }
     }

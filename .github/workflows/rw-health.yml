@@ -109,6 +109,13 @@ jobs:
           if [ -n "$ONLY" ]; then apps=$(echo "$apps" | jq -c --arg a "$ONLY" '[.[] | select(.app == $a)]'); fi
           [ "$apps" != "[]" ] || { echo "::error::no app matches '$ONLY'"; exit 1; }
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
+      # A job stuck waiting on an environment blocks its app's queue; this job never waits, so it can tell.
+      - name: Stuck release runs
+        continue-on-error: true
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python -m release_bot stuck-runs
 
   run:
     name: ${{ matrix.app }} · ${{ matrix.platform }}

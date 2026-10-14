@@ -1,23 +1,29 @@
 # Headless Mobile Release Bot
 
-**Staged Google Play rollouts that run themselves, on GitHub Actions and Slack. No server, no on-call.**
+**Staged Google Play and App Store rollouts that run themselves, on GitHub Actions and Slack. No server, no on-call.**
 
-> **Status: beta (v0).** Google Play only. The logic is covered by tests and a simulator, and the
-> full flow has run end to end in mock mode. It has **not yet run against a real Play account**,
-> so start in dry-run mode (see [setup](docs/setup.md#7-dry-run-during-your-next-manual-release)).
+> **Status: beta (v0).** Google Play, plus the App Store (beta). The logic is covered by unit tests,
+> contract tests against each provider's published API spec, and a simulator, and the full flow
+> (Android and iOS, several apps and Play accounts) has run end to end in mock mode in a public
+> sandbox. It has **not yet run against a real Play or App Store account**, so start in shadow
+> mode: it decides and posts, and changes nothing (see [setup](docs/setup.md#7-doctor-then-shadow-mode-during-your-next-manual-release)).
 
 Your release hero clicks one button on Thursday. After that the bot:
 
 - builds the signed `.aab` from your tag and publishes **GitHub release notes**
-- uploads to Play production at your first step (e.g. **1%**)
-- **checks health every few hours** (Play Console vitals by default; Crashlytics, Sentry, Grafana, Datadog, PagerDuty, Amplitude or any HTTP/JSON API optional) and **halts automatically**
-  on a new crash, Google's ANR/crash thresholds, or a critical alert
+- uploads to Play production at your first step (e.g. **1%**), or submits to App Store review with a phased release
+- **follows store review**: waits while it's in review, says when it's approved and live, and alerts the release hero on a rejection
+- **checks health every few hours** (Play Console vitals by default; Crashlytics, Sentry, Grafana, Datadog, PagerDuty, incident.io, Amplitude or any HTTP/JSON API optional) and **halts automatically**
+  on a new crash, Google's ANR/crash thresholds, or a critical alert, then runs your halt actions
+  (incident.io alert or incident, PagerDuty page, Optimizely kill switch)
 - moves through **your schedule** (e.g. 1% Mon → 2% Tue → 100% Wed), only when **your health rules** are green
-- keeps your team in the loop in Slack: one thread per release, announcements, SLO alerts
+- **keeps watching after 100%** (Android) and can halt the full release, so Play serves the previous version again
+- keeps your team in the loop in Slack (or Teams): one thread per release, announcements, SLO alerts,
+  and a warning if a bot run gets stuck in GitHub Actions
 
 ```
 Thu   hero: "Submit v4.12.0" ─▶ build ─▶ release notes ─▶ Play 1% ─▶ Slack thread
-Fri   Google approves → 1% live
+Fri   ✅ "Approved by Google: live at 1%"
 Sat…  health check every 3h ───────────────▶ 🛑 auto-halt if a halt rule fires
 Tue   ⬆️ 2%    Wed ⬆️ 100% 🎉   (your schedule; holds when a hold rule fires)
 ```
@@ -46,7 +52,7 @@ example app, the GitHub release notes and the Slack messages are all real.
 Optional Slack: create an app from [`slack-app-manifest.yml`](slack-app-manifest.yml), then set the
 `SLACK_BOT_TOKEN` secret and the `SLACK_CHANNEL_ID` variable. The bot joins public channels itself.
 
-Prefer no GitHub at all? `python -m sim` replays eight release-week scenarios locally and writes a
+Prefer no GitHub at all? `python -m sim` replays release-week scenarios locally and writes a
 Slack-style HTML report. See [docs/simulator.md](docs/simulator.md).
 
 ## Use it for real
@@ -74,7 +80,7 @@ Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 | [Multiple apps & accounts](docs/multi-app.md) | Several apps across several Play developer accounts from one repo |
 | [Integrations](docs/integrations.md) | Sentry, PagerDuty, Amplitude, generic HTTP checks, Microsoft Teams, Optimizely kill switch |
 | [iOS](docs/ios.md) | App Store phased releases with the same schedule and rules (beta) |
-| [Claude Code & Codex](docs/ai-assistants.md) | Skills + plugin: "set up the release bot for this repo"; MCP server: "where are our rollouts?", "halt shop" |
+| [Claude Code & Codex](docs/ai-assistants.md) | Skills + plugin: "set up the release bot for this repo"; local MCP server: "where are our rollouts?", "halt shop" |
 | [Use from your repo](examples/caller-workflows) | Short caller workflows for the reusable `rw-*.yml` workflows |
 | [Simulator](docs/simulator.md) | Replaying release weeks with mock data, writing scenarios |
 | [Security](SECURITY.md) | Credentials, permissions, who can release |
@@ -83,14 +89,15 @@ Crashlytics/BigQuery, Grafana, GitHub settings and a dry-run checklist.
 ## Security in one paragraph
 
 No long-lived Google keys: GitHub Actions gets short-lived tokens through Workload Identity
-Federation, accepted only from this repo, the `play-production` environment and `main`. The Play
-service account is scoped to one app. Only the on-duty `@android-release-hero` (Slack user group)
-can submit or resume, and anyone can halt. The upload keystore lives in a separate environment
+Federation, accepted only from this repo, its `play-<account>` environments and `main`. Each Play
+service account is scoped to its apps. Only the on-duty release hero (a Slack user group, or an
+incident.io on-call schedule) can submit or resume, and anyone can halt. The AI tools (skills,
+MCP server) only start these same workflows as the signed-in user and never handle secrets. The upload keystore lives in a separate environment
 the Play jobs never see. Nothing listens for inbound traffic. Details: [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-- [ ] Run against real Play releases (v0.1)
+- [ ] Run against real Play and App Store releases, starting in shadow mode (v0.1)
 - [x] `doctor` command: verifies every permission and connection with fix-it messages
 - [x] Shadow mode: decide and post "would have…" without touching the store
 - [x] Halt/Resume links in Slack messages and a GitHub job summary
@@ -100,6 +107,14 @@ the Play jobs never see. Nothing listens for inbound traffic. Details: [SECURITY
 - [x] Datadog monitors as a health source
 - [x] Sentry, PagerDuty (signal + paging), Amplitude guardrails, generic HTTP/JSON checks
 - [x] Microsoft Teams notifications, Optimizely kill switch on halt
+- [x] incident.io: alert or declare an incident on halt, release hero from an on-call schedule
+- [x] Contract tests against each provider's published OpenAPI spec / Google discovery documents
+- [x] `init` command and a JSON Schema for `release-bot.yml` (editor autocomplete, `validate`)
+- [x] Claude Code plugin and Codex skills; local MCP server for status and actions
+- [x] Play review state: wait in review, announce approval, alert on rejection
+- [x] Halt a fully rolled-out Android release (`after_full_release`)
+- [x] Watchdog for runs stuck in GitHub Actions
+- [ ] iOS scenarios in the local simulator
 - [ ] Bugsnag, Embrace, store ratings; Jira/Linear release tickets
 
 ## License

@@ -811,6 +811,8 @@ def parse_args(argv):
     i.add_argument("--no-workflows", action="store_true")
     i.add_argument("--skills", action="store_true", help="also add the AI skills for Codex / Claude Code")
     sub.add_parser("app-info").add_argument("--tag", default="")
+    sub.add_parser("stuck-runs", help="report release bot runs stuck in GitHub Actions").add_argument(
+        "--after-hours", type=int, default=None)
     return ap.parse_args(argv)
 
 
@@ -902,6 +904,22 @@ def cmd_doctor(raw: dict, app: str | None, factory=None) -> int:
     return 1 if failed else 0
 
 
+def cmd_stuck_runs(raw: dict, after_hours: int | None = None, slack=None, session=None) -> int:
+    """Warn about release bot runs stuck in GitHub Actions (see stuck_runs.py)."""
+    from release_bot import stuck_runs
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not repo:
+        print("::warning::GITHUB_REPOSITORY isn't set; nothing to check.")
+        return 0
+    if slack is None:
+        cfg = config_mod.resolve(raw, config_mod.app_ids(raw)[0])
+        channel = cfg["slack"].get("alerts_channel_id") or cfg["slack"]["channel_id"]
+        slack = Slack(os.environ.get("SLACK_BOT_TOKEN"), channel)
+    kw = {"session": session} if session is not None else {}
+    return stuck_runs.report(raw, slack, repo, os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"),
+                             after_hours=after_hours, **kw)
+
+
 def cmd_apps(raw: dict) -> int:
     """JSON matrix of every app and platform: [{"app", "platform", "environment", "account", "state"}]."""
     rows = []
@@ -925,6 +943,8 @@ def main(argv=None, deps: Deps | None = None) -> int:
             return cmd_apps(raw)
         if args.command == "doctor":
             return cmd_doctor(raw, args.app)
+        if args.command == "stuck-runs":
+            return cmd_stuck_runs(raw, args.after_hours)
         if args.command in ("plan", "validate"):
             return (cmd_plan if args.command == "plan" else cmd_validate)(raw, args.app)
         try:
